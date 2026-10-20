@@ -7,17 +7,13 @@ insert into auth.users values
  ('00000000-0000-0000-0000-000000000001','owner@example.test',now()),
  ('00000000-0000-0000-0000-000000000002','member@example.test',now()),
  ('00000000-0000-0000-0000-000000000003','stranger@example.test',now());
-insert into public.bootstrap_authorizations values(true,'owner@example.test',encode(extensions.digest('local-test-token','sha256'),'hex'),now()+interval '1 hour',null);
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000001',true);
 do $$ declare w uuid; item uuid; recipe uuid; service uuid; supplier uuid; invoice uuid; il uuid; inv uuid; key uuid:=gen_random_uuid(); d jsonb; first jsonb; q numeric; failed boolean; entry uuid;
 begin
- failed:=false;
- begin perform public.execute_command('bootstrap','{"name":"Owner"}',gen_random_uuid()); exception when others then failed:=true; end;
- perform tests.assert(failed,'Bootstrap requires owner token');
- w:=(public.execute_command('bootstrap','{"name":"Owner","token":"local-test-token"}',gen_random_uuid())->>'id')::uuid;
- failed:=false;
- begin perform public.execute_command('bootstrap','{"name":"Owner","token":"local-test-token"}',gen_random_uuid()); exception when others then failed:=true; end;
- perform tests.assert(failed,'Bootstrap can be claimed only once');
+ w:=(public.execute_command('onboarding','{"name":"Owner","position":"Secretary"}',gen_random_uuid())->>'id')::uuid;
+ perform public.execute_command('onboarding','{"name":"Owner","position":"Secretary"}',gen_random_uuid());
+ perform tests.assert((select count(*)=1 from public.workspaces),'First profile setup creates one workspace without a bootstrap code');
+ perform tests.assert((select count(*)=1 from public.memberships),'Profile setup retries do not duplicate memberships');
  item:=(public.execute_command('item',jsonb_build_object('workspace_id',w,'name','Rice','unit','kg'),gen_random_uuid())->>'id')::uuid;
  recipe:=(public.execute_command('recipe',jsonb_build_object('workspace_id',w,'name','Rice meal','base_yield',100,'basis','servings','ingredients',jsonb_build_array(jsonb_build_object('item_id',item,'quantity',10))),gen_random_uuid())->>'id')::uuid;
  service:=(public.execute_command('service',jsonb_build_object('workspace_id',w,'title','23 thaal Jaman','kind','gathering','service_date','2026-10-23','planned',23,'buffer',10,'people_per_thaal',8,'recipe_ids',jsonb_build_array(recipe)),gen_random_uuid())->>'id')::uuid;
@@ -68,22 +64,24 @@ begin
  perform tests.assert(failed,'Negative stock blocked');
  perform tests.assert(not exists(select 1 from public.journal_lines group by entry_id having sum(debit)<>sum(credit)),'All journals balance');
  perform tests.assert((select sum(debit)=500 from public.journal_lines jl join public.journal_entries je on je.id=jl.entry_id where account_code='payable' and je.kind='payment'),'Invoice and payment are not two expenses');
- inv:=(public.execute_command('invite',jsonb_build_object('workspace_id',w,'email','member@example.test'),gen_random_uuid())->>'id')::uuid;
  perform set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000003',true);
- failed:=false;begin perform public.execute_command('join',jsonb_build_object('invitation_id',inv,'name','Stranger','position','Secretary'),gen_random_uuid());exception when others then failed:=true;end;
- perform tests.assert(failed,'Invitation cannot be used by a different email');
- perform tests.assert(not public.is_member(w),'Uninvited user is not a member');
+ perform tests.assert(not public.is_member(w),'Registered account has no workspace access before profile setup');
+ failed:=false;begin perform public.execute_command('money',jsonb_build_object('workspace_id',w,'kind','expense','amount',1,'account','cash','description','Before profile'),gen_random_uuid());exception when others then failed:=true;end;
+ perform tests.assert(failed,'Operational records require completed membership');
  perform set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000002',true);
- perform public.execute_command('join',jsonb_build_object('invitation_id',inv,'name','Member','position','Treasurer'),gen_random_uuid());
+ perform tests.assert(public.workspace_snapshot()->>'needs_onboarding'='true','New password accounts are prompted for profile setup');
+ perform public.execute_command('onboarding','{"name":"Member","position":"Treasurer"}',gen_random_uuid());
  perform public.execute_command('money',jsonb_build_object('workspace_id',w,'kind','expense','amount','123.45','account','cash','description','Kitchen expense'),gen_random_uuid());
- perform tests.assert(public.is_member(w),'Invited member joins and edits accounts');
+ perform tests.assert(public.is_member(w),'Member completes profile without approval and edits accounts');
  perform public.execute_command('profile',jsonb_build_object('workspace_id',w,'name','Member','position','Secretary'),gen_random_uuid());
- failed:=false;begin perform public.execute_command('invite',jsonb_build_object('workspace_id',w,'email','stranger@example.test'),gen_random_uuid());exception when others then failed:=true;end;
+ failed:=false;begin perform public.execute_command('transfer',jsonb_build_object('workspace_id',w,'user_id','00000000-0000-0000-0000-000000000003'),gen_random_uuid());exception when others then failed:=true;end;
  perform tests.assert(failed,'Position label does not grant owner administration');
  perform set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000001',true);
  perform public.execute_command('revoke',jsonb_build_object('workspace_id',w,'user_id','00000000-0000-0000-0000-000000000002'),gen_random_uuid());
  perform set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000002',true);
  perform tests.assert(not public.is_member(w),'Revocation immediately blocks membership');
+ failed:=false;begin perform public.execute_command('onboarding','{"name":"Member","position":"Secretary"}',gen_random_uuid());exception when others then failed:=true;end;
+ perform tests.assert(failed,'A revoked account cannot regain access by repeating profile setup');
  failed:=false;begin perform public.execute_command('money',jsonb_build_object('workspace_id',w,'kind','expense','amount',1,'account','cash','description','Blocked'),gen_random_uuid());exception when others then failed:=true;end;
  perform tests.assert(failed,'Revoked member cannot post');
 end $$;

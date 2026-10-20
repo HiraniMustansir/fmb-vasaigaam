@@ -45,9 +45,13 @@ class FmbViewModel(val repo:Repository):ViewModel() {
   val detail=e.message.orEmpty()
   // Do not show SDK request headers, bearer tokens or complete response bodies.
   return when {
+   e is PasswordSetupException->e.message.orEmpty()
+   "invalid_credentials" in detail.lowercase() || "invalid login credentials" in detail.lowercase()->"The email or password is incorrect."
+   "email_not_confirmed" in detail.lowercase() || "email not confirmed" in detail.lowercase()->"This account is not active yet. Contact the project administrator."
+   "already registered" in detail.lowercase() || "user_already_exists" in detail.lowercase()->"An account already exists for this email. Choose Sign in."
+   "weak_password" in detail.lowercase()->"Choose a stronger password that meets the account requirements."
    "Conflict" in detail->"This record changed. Close the draft, refresh, and review the latest version before editing again."
    "Insufficient" in detail->"There is not enough available stock. Check physical stock and reservations, then retry."
-   "Bootstrap" in detail->"The setup code is invalid, expired or already used. Check with the workspace owner."
    "Workspace access" in detail->"Your workspace access is unavailable. Refresh or contact the workspace owner."
    "exceeds" in detail->"The quantity or amount exceeds the remaining balance. Review the original record."
    "Release reservations" in detail->"Release the affected reservations before editing or reconciling this record."
@@ -67,8 +71,10 @@ class FmbViewModel(val repo:Repository):ViewModel() {
    } finally { mutable.update{it.copy(busy=false,loading=false)} }
   }
  }
- fun code(email:String,done:()->Unit)=run{repo.requestCode(email.trim());done()}
- fun verify(email:String,code:String)=run{repo.verify(email.trim(),code.trim());mutable.update{it.copy(signedIn=true)};refresh()}
+ fun authenticate(email:String,password:String,confirmation:String?,done:()->Unit)=run {
+  if(confirmation==null)repo.signIn(email,password)else repo.register(email,password,confirmation)
+  mutable.update{it.copy(signedIn=true)};done();refresh()
+ }
  fun logout()=run{watcher?.cancel();watched="";repo.logout();mutable.value=AppState(loading=false)}
  fun reload()=run{refresh()}
  private suspend fun refresh(){
@@ -84,8 +90,9 @@ class FmbViewModel(val repo:Repository):ViewModel() {
   }
  }
  fun submit(draft:Draft,done:()->Unit)=run{
-  if(draft.kind !in listOf("bootstrap","join"))repo.save(draft)
-  repo.command(draft.kind,Json.parseToJsonElement(draft.payload).jsonObject,draft.id)
+  if(draft.kind!="onboarding")repo.save(draft)
+  val payload=Json.parseToJsonElement(draft.payload).jsonObject
+  repo.command(draft.kind,payload,draft.id)
   repo.remove(draft.id);done()
   try { refresh() } catch(e:Exception){
    if(e is CancellationException)throw e

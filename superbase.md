@@ -1,150 +1,140 @@
-# Supabase setup for FMB Vasaigaam
+# Supabase setup — email and password, no SMTP
 
-The exact filename `superbase.md` follows the requested deliverable. This version has **not** deployed migrations to the supplied hosted project. Its publishable key allows client requests, not schema administration.
+The current app (0.2.0) uses this flow:
 
-## 1. Prerequisites
+**Create account → enter your name and committee position → Finish setup → Home.**
 
-Use a Supabase account with project-owner access, current Supabase CLI, Docker for local tests, JDK 17 and Android SDK 36. Use a separate development project. Read the committed [validation report](docs/validation.md) before handling live stock or accounts.
+No email code, invitation, owner approval, or bootstrap authorization is needed. Existing members sign in with their password. Anyone who registers can join the one shared committee workspace. An email address is an account identifier; the app does not prove ownership of its inbox.
 
-## 2. Create the project
+## What I checked
 
-Create a Supabase project in a suitable region, save the database password securely, and wait for it to become healthy. For the owner's existing project, the ref is `bdeqckqvvbllagezkugv`. Do not reset that project's database or replace existing schemas. Review migrations in a development project first.
+On 20 October 2026, the project at `https://bdeqckqvvbllagezkugv.supabase.co` was reachable. Email sign-in and Auth account creation were enabled. The `workspace_snapshot` RPC was present and correctly refused an anonymous call. **Email confirmation was still enabled** (`mailer_autoconfirm=false`), so change that setting in Step 2.
 
-## 3. Project URL and publishable key
+I have not changed dashboard settings or deployed the new registration migration to your hosted project. The publishable key is client-safe configuration, not an administrator credential.
 
-In Supabase project Settings → API Keys / Data API, copy the project URL and client-safe publishable key (legacy anon key also supported by the SDK). Never use a secret/service-role key as the Android client key. The owner's supplied URL and publishable key are default build settings; they confer no membership.
+## Step 1 — Install the registration migration
 
-## 4. Android configuration
+Open [your existing Supabase project](https://supabase.com/dashboard/project/bdeqckqvvbllagezkugv), then **SQL Editor → New query**.
 
-Set `sdk.dir` in ignored `local.properties`. Optional `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` properties or environment variables override defaults. Rebuild the APK after changing them. Do not prefix native properties with NEXT_PUBLIC_; those names are a web convention.
+If you already successfully ran migrations 001 and 002, run **only** the new file:
 
-## 5. Email authentication
+[`supabase/migrations/202610200003_password_registration.sql`](supabase/migrations/202610200003_password_registration.sql)
 
-Enable the email provider and email confirmation. The app uses passwordless email OTP, followed by `verifyEmailOtp(EMAIL)`. Configure the Magic Link and Confirm Signup templates to display `{{ .Token }}` as a code. The app does not parse a magic-link callback. Verified email is enforced again inside database functions, and public Auth registration never creates workspace membership.
+1. Open that file in your IDE and copy its complete contents.
+2. In a new SQL Editor query, put `BEGIN;` on the first line.
+3. Paste the entire file underneath.
+4. Put `COMMIT;` on the last line.
+5. Run the whole query. Expect a success message.
+6. To name it, start typing/pasting, find it under PRIVATE, right-click its name → Rename query → `FMB 03 - Simple registration`.
 
-## 6. Redirects and deep links
+The migration preserves existing workspace, membership, stock and financial data. It adds automatic profile setup, keeps the original operational transaction function private, and retires the old bootstrap/invitation entry points. It does not disable RLS.
 
-This build uses manual code entry, so no redirect or Android deep link is needed. Set the Auth Site URL to an operator-controlled HTTPS page for fallback links. Do not add broad wildcard redirect patterns. OAuth and magic-link deep-link sign-in are not implemented; adding those later requires Android intent filters, app-link verification and an exact Auth redirect allowlist.
+For a completely new database, run all files in order:
 
-## 7. Production email delivery
+1. [202610200001_core.sql](supabase/migrations/202610200001_core.sql)
+2. [202610200002_commands.sql](supabase/migrations/202610200002_commands.sql)
+3. [202610200003_password_registration.sql](supabase/migrations/202610200003_password_registration.sql)
 
-Configure custom SMTP under Auth settings, verify the sending domain and test real code delivery. Review the current project's Auth rate limits, token length/expiry, resend interval and SMTP provider quotas. Default Supabase email delivery has development restrictions; do not assume it serves 10–20 real members. Check [Auth email documentation](https://supabase.com/docs/guides/auth/auth-email) and the dashboard for current limits. No fixed quota is assumed here.
+Run each inside its own BEGIN/COMMIT transaction. Stop on any error rather than deleting tables or re-running already installed files. Do not execute `supabase/tests/*` or `supabase/seed.sql` on your actual committee project.
 
-## 8. Ordered migration deployment
+SQL Editor execution does not record Supabase CLI migration history. Reconcile that history before switching to CLI deployment later.
 
-Authenticate the CLI as the project operator. These commands require credentials beyond the publishable key:
+## Step 2 — Turn off email confirmation
 
-```sh
-supabase init
-supabase login
-supabase link --project-ref bdeqckqvvbllagezkugv
-supabase db push --dry-run
-supabase db push
-```
+In Supabase:
 
-Supply the database password securely when prompted. Review dry-run output first. Alternatively use the SQL editor to execute each migration file in the exact order below. Migrations are intended to run once, tracked by the CLI; do not rerun partially executed files without diagnosing the failure.
+1. Open **Authentication → Sign In / Providers**.
+2. Find and open **Email** under Auth Providers. Some dashboard versions display the confirmation toggle in the page's general settings instead.
+3. Keep the Email provider enabled.
+4. Set **Confirm email** to **OFF**.
+5. Keep **Allow new users to sign up** enabled.
+6. Click **Save changes**.
 
-## 9. Exact schema files
+Deploy migration 003 before turning confirmation off, so the app uses the new membership flow. You do not need SMTP, Gmail App passwords, email templates, a sending domain, or magic-link redirects for registration/password sign-in. Leave any incomplete SMTP form unsaved.
 
-1. [`supabase/migrations/202610200001_core.sql`](supabase/migrations/202610200001_core.sql): tables, composite keys, RLS, Storage policies, indexes, balanced-journal trigger and demand view.
-2. [`supabase/migrations/202610200002_commands.sql`](supabase/migrations/202610200002_commands.sql): private stock/journal helpers, FEFO allocation, commands and workspace snapshot.
+The app checks the public Auth configuration before creating an account. If confirmation is still enabled, it stops before requesting signup rather than intentionally triggering an email.
 
-These files are the schema source of truth. **Never deploy `supabase/tests/local_platform.sql`** to Supabase: it only emulates Auth/Storage contracts for isolated PostgreSQL tests.
+Supabase implicitly marks password accounts confirmed when this setting is off; that timestamp is not evidence that the user verified an inbox. [Official configuration guidance](https://supabase.com/docs/guides/auth/general-configuration).
 
-## 10. RLS and database permissions
+## Step 3 — Use the updated app
 
-All workspace tables have RLS. API roles receive SELECT with active-membership policies. Direct operational writes are revoked; writes go through the command function. Cross-workspace relationships use composite foreign keys. Owner-only operations are checked separately from position labels. SECURITY DEFINER functions have empty search_path and explicit grants. Private helpers cannot be invoked by API users. New tables/functions must follow the same rules. Review [Supabase RLS guidance](https://supabase.com/docs/guides/database/postgres/row-level-security).
+The old 0.1.0 build has an email-code screen, so use 0.2.0 or a direct development deployment from the current source.
 
-## 11. One-time first-secretary bootstrap
+1. Open FMB Vasaigaam.
+2. Tap **New here? Create an account**.
+3. Enter your email, choose a password of at least 8 characters, and repeat the password.
+4. Tap **Create account**. There is no email-code step.
+5. Enter your name and committee position, such as Secretary, Treasurer, Joint Treasurer, Kitchen Coordinator, Purchase Coordinator or Committee Member. Custom positions are allowed.
+6. Tap **Finish setup**. You should reach Home.
 
-Generate a high-entropy token outside Git, for example `openssl rand -hex 32`. Deliver it privately to the designated secretary. In the SQL editor, authorize that exact email and a short expiry. Replace placeholders before execution; never commit the token or its hash.
+The first person to finish setup creates the workspace and becomes its owner for settings/member administration. Later members join that same workspace automatically. Their chosen position is a descriptive label; every active member has operational editing rights. Concurrent setup attempts cannot create duplicate workspaces or default accounts.
+
+Existing members choose **Sign in** with their email and password. The app retains Supabase sessions; passwords are not saved in Room, app drafts, reports or Git.
+
+## Step 4 — Verify setup
+
+Use these read-only SQL queries:
 
 ```sql
-insert into public.bootstrap_authorizations(slot,email,token_hash,expires_at)
-values (true, 'designated-secretary@example.com',
-        encode(extensions.digest('REPLACE_WITH_RANDOM_TOKEN','sha256'),'hex'),
-        now() + interval '1 hour');
+select name, timezone, owner_id from public.workspaces;
+
+select name, position, active from public.memberships;
+
+select to_regprocedure('public.execute_command(text,jsonb,uuid)');
 ```
 
-The secretary signs in and verifies that same email, chooses First secretary setup, and enters name/token. The server locks the single authorization row, verifies email/token/expiry and ensures no workspace exists. It creates the owner membership, accounts and workspace atomically. Concurrent claims cannot create two owners. `claimed_at` disables the token automatically. An operator can disable an unused authorization immediately with:
+After the first setup, expect one FMB workspace, an active member and a non-NULL execute_command signature. After the next member finishes setup, expect another member in the same workspace.
+
+To verify that migration 003's registration flow is installed:
 
 ```sql
-update public.bootstrap_authorizations set expires_at=now() where slot;
+select position('onboarding' in pg_get_functiondef(
+  'public.execute_command(text,jsonb,uuid)'::regprocedure
+)) > 0 as simple_registration_installed;
 ```
 
-Do not reset claimed_at or create replacement production workspaces as a shortcut. Recovery requires the project operator to inspect Auth identity and membership in the SQL editor.
+Expect `true`.
 
-## 12. Invitations and revocation
+## Step 5 — Configure your kitchen
 
-Home → Members → Invite member stores the approved email with a seven-day expiry. The app does not send invitation emails; the owner tells the approved person to install/sign in. Only a verified matching email can accept that invitation. The member chooses a descriptive position. Operational privileges are equal.
+1. Home → Members → Kitchen settings: enter defaults.
+2. Stock: add ingredients and their base units.
+3. Stock → Suppliers: add suppliers.
+4. Menu → Recipes: add recipes and ingredient quantities.
+5. Stock → Record movement → Opening: record physical opening stock and costs.
+6. Accounts → Record money → Opening: record opening cash/bank balances.
 
-Revocation marks membership inactive and expires outstanding invitations to that email. Server RPCs, RLS and Storage checks reject future access immediately. Cached data is cleared on the device's next successful membership check; disconnected devices cannot receive revocation immediately. Ownership transfer must target an active member, and the owner cannot revoke themself before transferring.
+There is no Invite member action. Core members use Create account and finish their profile themselves.
 
-## 13. Private attachments
+## Password recovery and existing email-code accounts
 
-Migration 1 creates `committee-attachments`, private, limited to JPEG/PNG/PDF and 10 MB. Object paths start with the workspace UUID. SELECT and INSERT policies call current membership. No client update/delete policy exists, preserving evidence. Accounts → Receipts uploads evidence and registers its reference only after the object exists. Upload is not a posting workflow.
+Email-based password reset is not available without configured email delivery. Contact the project administrator for a trusted administrative password reset, after they establish your identity outside the app. No administrator/service-role key is stored on the phone.
 
-Opening evidence issues a signed URL valid for 60 seconds after a permission check. Such a link can survive revocation until expiry. Do not create public bucket URLs. A failed metadata registration can leave a private orphan object; operators can reconcile these against the attachments table. Attachment upload/download has not been tested against the hosted Storage service.
+An account previously created through email OTP may have no password. Registering the same address again does not automatically set a password. The project administrator must set a password for that existing Auth user through the Supabase Admin API or another trusted operator tool. Do not delete an Auth user with existing committee records just to recreate it; that can break linked history.
 
-## 14. Realtime
+## Troubleshooting
 
-Migration 1 adds `audit_events` to `supabase_realtime`. Enable Realtime for the project and confirm publication membership in the dashboard. The app subscribes to permitted audit inserts and refetches current records. Table RLS controls accessible changes. Foreground polling every 30 seconds remains as a fallback. Realtime delivery itself is not a transaction receipt and does not authorize writes.
+| Problem | What to check |
+|---|---|
+| Create account says registration is unavailable | Confirm email must be OFF, signups ON, Email provider ON. Save the settings. |
+| Old email-code screen | You are running 0.1.0; deploy the current app build. |
+| Signed in but profile setup is unavailable | Run migration 003, then tap Refresh. |
+| Missing function/table | Install missing migrations in order. |
+| Object already exists during migration | Stop and share the exact error; do not reset the project. |
+| Wrong email/password | Use Sign in for an existing account. Check with the project administrator if it was created with OTP and has no password. |
+| Password rejected | Use at least 8 characters and satisfy any stronger password rules configured in Supabase. |
+| Revoked access | The administrator must review it; repeating profile setup cannot reactivate a revoked account. |
 
-## 15. Edge Functions
+After confirming that SQL objects exist, you can refresh a stale Data API cache with:
 
-None are needed or included. There are no Edge Function deployment commands for this version. If automated invitation email or push is added later, use a separate authenticated server function that rechecks ownership/membership and keeps provider credentials server-side.
-
-## 16. Secrets
-
-Keep CLI tokens, DB passwords, bootstrap tokens, SMTP credentials and signing keystores outside Git. The APK includes only the client-safe publishable key. Bootstrap authorization is never included in a build. Android backup/device-transfer exclusions protect session/cache files from automatic backup. This is not a substitute for device access controls or a security review.
-
-## 17. Background jobs and notifications
-
-Android WorkManager checks membership and refreshes cached reads when connected, approximately every 15 minutes subject to OS scheduling. It never posts drafts automatically. There are no Supabase cron jobs, push credentials or push delivery setup. Tasks and activity are visible inside the app; push notifications and configurable notification preferences are not implemented.
-
-## 18. Bohri calendar setup
-
-The reference [Mumineen Calendar](https://www.mumineencalendar.com/) was inspected; no licensed API or verified dataset was established. No scraping, redistributed observances or generic Hijri conversion is included. The owner maintains `calendar_mappings` using Miqaats → Calendar with a source, verification status and Gregorian date. Editing uses a version check and appends audit history. No dates are verified by default. The available verified dates are exactly the individually flagged mappings; gaps remain unverified. This version lists those mappings rather than presenting a guaranteed continuous date range or calendar month grid.
-
-Workspace defaults and calculations use Asia/Kolkata civil dates at midnight. There is no sunset rollover. Confirm community conventions before adding any conversion provider. Local observance-only entries and gatherings remain separate; observances never automatically generate a meal.
-
-## 19. Development seed
-
-In a separate development project, create and verify `fmb-owner@example.test` through your local Auth tooling (use an email deliverable in your dev environment if necessary and edit the seed accordingly). `supabase/seed.sql` refuses to run unless `fmb.allow_demo_seed=yes` is explicitly set. Use only on an empty development workspace:
-
-```sh
-PGOPTIONS='-c fmb.allow_demo_seed=yes' psql "$DEV_DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/seed.sql
+```sql
+notify pgrst, 'reload schema';
 ```
 
-The seed creates an explicitly named DEMO workspace, a recipe, supplier, stock and 23-thaal plan. It is never loaded by the APK and never substitutes production data. The SQL test suite has its own transactional fixtures, rolled back after checks.
+## Access model and technical reference
 
-## 20. Permission and business tests
+The app still requires a password session and membership before operational data is accessible. Server membership checks, private Storage, audit history and transactional stock/accounting rules remain. Membership is automatically granted when a registered user completes their profile; distributing the APK privately is not a server-side approval boundary.
 
-Run `python3 scripts/test_backend.py`. It starts an isolated PostgreSQL 16 container, installs the platform fixture, applies actual migrations, runs business tests, exercises separate concurrent sessions, checks API-role RLS/Storage policies, then destroys the container. Docker is required. These are not live Auth, email, Storage HTTP or Realtime integration tests. Review [validation](docs/validation.md) for unverified scenarios.
+The default workflow assumes a single committee workspace. If multiple workspaces exist in the project, the administrator must configure the intended workspace rather than allowing automatic selection.
 
-Before rollout, test with two real users and a separate workspace: invitation matching, shared edits, revoked access including Storage, duplicate receipts/cooking, partial payments, expired sessions and reconnects. An ordinary user must never be able to call private helpers or directly mutate ledger tables.
-
-## 21. Backup, export and restore
-
-Verify backup retention and point-in-time recovery availability for the selected Supabase plan; no plan capability is assumed. Use the Supabase dashboard and official [backup guidance](https://supabase.com/docs/guides/platform/backups). Maintain operator-controlled encrypted logical exports as needed, for example `supabase db dump --linked -f backup.sql` with the appropriate CLI schema/data flags after checking that CLI version's help. Test restoration in an isolated project before relying on a backup.
-
-Database dumps do not constitute a complete backup of Storage object bytes, SMTP configuration or signing keys. Back up private attachment objects separately through an authorized operator process. Track hashes/paths and test retrieval after restore. Do not commit backup data. The app's journal CSV is a report, not a full database restore format. Preserve audit records and reconcile opening totals after a restoration.
-
-## 22. Troubleshooting
-
-- **PGRST202 / missing workspace_snapshot:** apply both migrations and allow the Data API schema cache to refresh. The supplied project returned this error during validation.
-- **No code / only a link:** configure SMTP and templates to show Token; check delivery logs, expiry and rate limits.
-- **Verified user sees no workspace:** approve their exact email and have them accept an unexpired invitation. Signing up alone grants no access.
-- **Bootstrap rejected:** check designated email, verification, token hash, expiry and claimed_at. Never expose the row to client roles.
-- **Conflict:** refetch and review current state. Do not override record versions silently. Release reservations before editing menus/recipes they depend on.
-- **Receipt rejected:** match the ingredient and invoice line; use a positive receipt quantity within remaining delivery. Returns must be negative and within received quantity.
-- **Stock rejected:** review on-hand/reservations and selected batches. Reconcile only after physical counting and release affected reservations deliberately.
-- **RLS / Storage denied:** check current membership, UUID path prefix, file type/size and bucket policies. Never solve this by using service-role credentials on the phone.
-- **No live updates:** check publication/RLS and network; tap Refresh. Polling also refreshes the app.
-- **Posted draft still shown after reconnect:** retry the same saved draft/key, then refresh. The server returns its original result without posting again.
-
-## 23. Known limits and external dependencies
-
-This initial app does not fulfill the entire attached product specification. Purchase orders/expected incoming supply, tax/discount/charges, invoice cancellation, full stock/production reversal chains, per-recipe portion profiles, demand overrides, rich reporting, continuous month calendar, calendar import, historical recommendations, automatic invitations, OCR, localization extraction and comprehensive device accessibility tests remain work. See the precise feature/test matrix in [validation](docs/validation.md).
-
-Real email, project migration deployment, authoritative calendar data/permission, production signing and two-member device acceptance require operator configuration. No successful hosted deployment, email authentication or production readiness is claimed.
+See [docs/supabase-reference.md](docs/supabase-reference.md) for migrations, backend security, Storage, Realtime, tests, development seeds, backup/restore and known limits. See [docs/validation.md](docs/validation.md) for what was actually tested.

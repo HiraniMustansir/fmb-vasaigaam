@@ -36,7 +36,7 @@ import java.util.UUID
  }
  val current=payload().toString()
  val draft=Draft(key,vm.repo.user,w,form.kind,current)
- val canDraft=form.kind !in listOf("bootstrap","join")
+ val canDraft=form.kind!="onboarding"
  LaunchedEffect(current,submitting) { if(canDraft&&!submitting) { delay(700);vm.repo.save(draft) } }
  Dialog(onDismissRequest=onDismiss,properties=DialogProperties(usePlatformDefaultWidth=false)) {
   Surface(Modifier.fillMaxSize(),color=MaterialTheme.colorScheme.background) {
@@ -48,6 +48,7 @@ import java.util.UUID
      if(form.kind=="invoice") Text("Enter quantities and rates in item base units. Saving the bill does not receive goods or pay the supplier.")
      if(form.kind=="production") Text("Enter actual ingredients used, then outputs. Confirming consumes stock and completes this service.")
      if(form.kind=="revoke") Text("The member will immediately lose server access. Their local cache is cleared on the next connection.")
+     if(form.kind=="onboarding") Text("Positions include Secretary, Treasurer, Joint Treasurer, Kitchen Coordinator, Purchase Coordinator and Committee Member. You can enter a custom position.")
      form.fields.forEach{field->
       if(field.options.isNotEmpty()) Choice(field.label,values[field.key].orEmpty(),field.options,field.optional){values[field.key]=it}
       else OutlinedTextField(value=values[field.key].orEmpty(),onValueChange={values[field.key]=it},label={Text(field.label+if(field.optional)" (optional)" else "")},modifier=Modifier.fillMaxWidth(),minLines=if(field.key in listOf("notes","instructions","body"))2 else 1)
@@ -82,8 +83,8 @@ import java.util.UUID
        lines.any{it.str("item_id").isBlank()||(it.str("quantity").toBigDecimalOrNull()?.signum()?:0)<=0}->"Each ingredient needs a valid positive quantity."
        else->""
       }
-      if(validation.isEmpty()) confirm=true
-     }){Text(if(canDraft)"Review & post" else "Continue")}
+      if(validation.isEmpty()) {if(form.kind=="onboarding"){submitting=true;vm.submit(draft,onDismiss)}else confirm=true}
+     }){Text(if(form.kind=="onboarding")"Finish setup" else if(canDraft)"Review & post" else "Continue")}
     }
    }
   }

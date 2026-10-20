@@ -4,8 +4,6 @@ import androidx.room.*
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.auth.auth
-import io.github.jan.supabase.auth.OtpType
-import io.github.jan.supabase.auth.providers.builtin.OTP
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.realtime.*
@@ -37,10 +35,11 @@ data class CachedSnapshot(@androidx.room.PrimaryKey val user: String, val payloa
 abstract class DraftDatabase : RoomDatabase() { abstract fun drafts(): DraftDao; abstract fun snapshots(): SnapshotDao }
 class Repository(private val db: DraftDatabase) {
  val client = createSupabaseClient(BuildConfig.SUPABASE_URL, BuildConfig.SUPABASE_KEY) { install(Auth); install(Postgrest); install(Realtime); install(Storage) }
+ private val passwords=org.vasaigaam.fmb.domain.PasswordAuthentication(SupabasePasswordAuth(client))
  val user get() = client.auth.currentUserOrNull()?.id.orEmpty()
  suspend fun ready() { client.auth.awaitInitialization() }
- suspend fun requestCode(email: String) { client.auth.signInWith(OTP) { this.email=email } }
- suspend fun verify(email: String, code: String) { client.auth.verifyEmailOtp(type=OtpType.Email.EMAIL, email=email, token=code) }
+ suspend fun signIn(email:String,password:String)=passwords.signIn(email,password)
+ suspend fun register(email:String,password:String,confirmation:String)=passwords.register(email,password,confirmation)
  suspend fun logout() { try { client.auth.signOut() } catch(e:Exception) { if(e is kotlinx.coroutines.CancellationException) throw e } finally { client.auth.clearSession(); clearLocal() } }
  suspend fun clearLocal() { db.drafts().clear(); db.snapshots().clear() }
  suspend fun cached():CachedSnapshot? = db.snapshots().get(user)?.takeIf { System.currentTimeMillis()-it.saved<24*60*60*1000L }

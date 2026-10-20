@@ -1,7 +1,7 @@
 WARNING:  wal_level is insufficient to publish logical changes
 HINT:  Set wal_level to "logical" before creating subscriptions.
-NOTICE:  PASS: Bootstrap requires owner token
-NOTICE:  PASS: Bootstrap can be claimed only once
+NOTICE:  PASS: First profile setup creates one workspace without a bootstrap code
+NOTICE:  PASS: Profile setup retries do not duplicate memberships
 NOTICE:  PASS: 23 thaals at 8 people = 184 people; buffer applied once
 NOTICE:  PASS: Observances create no ingredient demand
 NOTICE:  PASS: Duplicate opening request posts once
@@ -23,11 +23,13 @@ NOTICE:  PASS: Second production completion blocked
 NOTICE:  PASS: Negative stock blocked
 NOTICE:  PASS: All journals balance
 NOTICE:  PASS: Invoice and payment are not two expenses
-NOTICE:  PASS: Invitation cannot be used by a different email
-NOTICE:  PASS: Uninvited user is not a member
-NOTICE:  PASS: Invited member joins and edits accounts
+NOTICE:  PASS: Registered account has no workspace access before profile setup
+NOTICE:  PASS: Operational records require completed membership
+NOTICE:  PASS: New password accounts are prompted for profile setup
+NOTICE:  PASS: Member completes profile without approval and edits accounts
 NOTICE:  PASS: Position label does not grant owner administration
 NOTICE:  PASS: Revocation immediately blocks membership
+NOTICE:  PASS: A revoked account cannot regain access by repeating profile setup
 NOTICE:  PASS: Revoked member cannot post
 NOTICE:  PASS: FEFO chooses earliest expiry before creation order
 NOTICE:  PASS: Reconciliation posts the counted difference
@@ -41,10 +43,12 @@ NOTICE:  PASS: Recipe edits preserve past production snapshots
 NOTICE:  PASS: Additional postings remain balanced
 NOTICE:  PASS: Revoked user cannot read items through RLS
 NOTICE:  PASS: Revoked user cannot read financial records
-PASS: Concurrent bootstrap produces exactly one workspace owner
+PASS: Concurrent registrations join one workspace and initialize accounts exactly once
 PASS: Two concurrent stock issues cannot overspend stock
 PASS: Concurrent identical requests return success and post once
 PASS: API role cannot read another workspace or its attachments
 PASS: Storage upload policy permits only active workspace members
 PASS: Direct client mutation of the stock ledger is denied
+PASS: Password-registration upgrade preserves an existing workspace, members and inventory records
+PASS: API users cannot bypass the registration wrapper through the legacy private function
 All backend checks passed on PostgreSQL 16. Supabase platform services are stubbed; hosted integration is not tested.

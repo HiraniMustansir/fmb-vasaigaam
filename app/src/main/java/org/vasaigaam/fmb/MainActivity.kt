@@ -24,6 +24,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -82,6 +86,9 @@ fun JsonObject.amount(k:String)=money.format(num(k))
  val w=workspace?.str("id").orEmpty()
  val drafts by remember(w) { vm.repo.drafts(w) }.collectAsStateWithLifecycle(emptyList())
  fun open(kind:String,initial:JsonObject=JsonObject(emptyMap())) { draftId=null; editing=form(kind,data,initial) }
+ LaunchedEffect(state.signedIn,data.str("needs_onboarding")) {
+  if(state.signedIn&&data.str("needs_onboarding")=="true"&&editing==null) {draftId=null;editing=form("onboarding",data)}
+ }
  val owner=workspace?.str("owner_id")==vm.repo.user
  Scaffold(topBar={ TopAppBar(title={ Column { Text("FMB Vasaigaam",fontWeight=FontWeight.Bold); Text("Committee kitchen workspace",style=MaterialTheme.typography.labelMedium) } },actions={ if(state.signedIn) { IconButton(onClick={vm.reload()}){Icon(Icons.Outlined.Refresh,"Refresh")}; IconButton(onClick={vm.logout()}){Icon(Icons.Outlined.Logout,"Sign out")} } }) },bottomBar={ if(w.isNotEmpty()) NavigationBar {
   listOf("Home" to Icons.Outlined.Home,"Menu" to Icons.Outlined.RestaurantMenu,"Stock" to Icons.Outlined.Inventory2,"Miqaats" to Icons.Outlined.CalendarMonth,"Accounts" to Icons.Outlined.AccountBalanceWallet).forEachIndexed { i,p->NavigationBarItem(selected=tab==i,onClick={tab=i;more="Overview"},icon={Icon(p.second,p.first)},label={Text(p.first)}) }
@@ -93,10 +100,12 @@ fun JsonObject.amount(k:String)=money.format(num(k))
   else if(w.isEmpty()) Column(Modifier.padding(24.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(16.dp)) {
    Image(painterResource(R.drawable.jamaat_logo),"Anjuman E Badri Vasai Gaam logo",Modifier.size(144.dp).align(Alignment.CenterHorizontally))
    Text("Welcome to your committee workspace",style=MaterialTheme.typography.headlineSmall)
-   Text("Access is by invitation. Sign in with the email approved by your workspace owner.")
-   if(data.rows("invitations").isNotEmpty()) Button(onClick={open("join")}){Text("Accept invitation")}
-   OutlinedButton(onClick={open("bootstrap")}) { Text("First secretary setup") }
-   Text("If your membership was revoked, committee records and drafts have been cleared from this device.",style=MaterialTheme.typography.bodySmall)
+   if(data.str("access_revoked")=="true") {
+    Text("Your workspace access has been revoked. Contact the project administrator.")
+   } else {
+    Text("One last step: enter your name and committee position to join the kitchen workspace.")
+    Button(onClick={open("onboarding")},enabled=!state.busy&&!state.loading&&data.str("needs_onboarding")=="true") {Text("Complete profile")}
+   }
   }
   else LazyColumn(Modifier.fillMaxSize(),contentPadding=PaddingValues(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
    item { Text(if(state.error==null&&!state.cached) "Updated ${state.updated.substringAfter('T').take(5)} UTC • server records" else "Connection issue • last saved view ${state.updated}",style=MaterialTheme.typography.labelSmall) }
@@ -112,7 +121,7 @@ fun JsonObject.amount(k:String)=money.format(num(k))
     }
     more=="Members"->{
      item { Heading("Committee","All active members can edit operational records. Position labels do not grant permissions.") }
-     item { Actions(listOf("My profile" to {open("profile")})+if(owner) listOf("Invite member" to {open("invite")},"Revoke access" to {open("revoke")},"Transfer ownership" to {open("transfer")},"Kitchen settings" to {open("settings",workspace?.get("settings")?.jsonObject?:JsonObject(emptyMap()))}) else emptyList()) }
+     item { Actions(listOf("My profile" to {open("profile")})+if(owner) listOf("Revoke access" to {open("revoke")},"Transfer ownership" to {open("transfer")},"Kitchen settings" to {open("settings",workspace?.get("settings")?.jsonObject?:JsonObject(emptyMap()))}) else emptyList()) }
      data.rows("memberships").forEach { r->item { Record(r.str("name"),r.str("position")+if(r.str("active")=="true") " • Active" else " • Revoked") } }
     }
     more=="Tasks"->{
@@ -183,14 +192,22 @@ fun JsonObject.amount(k:String)=money.format(num(k))
 }
 
 @Composable fun Login(vm:FmbViewModel,busy:Boolean) {
- var email by rememberSaveable{mutableStateOf("")};var code by rememberSaveable{mutableStateOf("")};var sent by rememberSaveable{mutableStateOf(false)}
+ var email by rememberSaveable{mutableStateOf("")}
+ var registering by rememberSaveable{mutableStateOf(false)}
+ // Passwords deliberately do not use rememberSaveable or the offline draft database.
+ var password by remember{mutableStateOf("")}
+ var confirmation by remember{mutableStateOf("")}
+ var visible by remember{mutableStateOf(false)}
  Column(Modifier.fillMaxWidth().padding(24.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(16.dp)) {
-  Image(painterResource(R.drawable.jamaat_logo),"Jamaat logo",Modifier.size(152.dp).align(Alignment.CenterHorizontally))
-  Text("Welcome to FMB Vasaigaam",style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.Bold)
-  Text("A shared kitchen workspace for the Vasai Gaam committee. Sign in with your approved email.")
-  OutlinedTextField(email,{email=it},label={Text("Email address")},modifier=Modifier.fillMaxWidth(),singleLine=true)
-  if(sent) { Text("Check your email for the sign-in code.");OutlinedTextField(code,{code=it},label={Text("Email verification code")},modifier=Modifier.fillMaxWidth());Button(onClick={vm.verify(email,code)},enabled=!busy&&code.isNotBlank()){Text("Verify & continue")} }
-  TextButton(onClick={vm.code(email){sent=true}},enabled=!busy&&email.contains('@')){Text(if(sent)"Send another code" else "Send sign-in code")}
+  Image(painterResource(R.drawable.jamaat_logo),"Jamaat logo",Modifier.size(128.dp).align(Alignment.CenterHorizontally))
+  Text(if(registering)"Create your account" else "Welcome to FMB Vasaigaam",style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.Bold)
+  Text("Sign in with your email and password. New members can create an account and complete their committee profile.")
+  OutlinedTextField(email,{email=it},label={Text("Email address")},enabled=!busy,keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Email,imeAction=ImeAction.Next),modifier=Modifier.fillMaxWidth(),singleLine=true)
+  OutlinedTextField(password,{password=it},label={Text("Password")},enabled=!busy,visualTransformation=if(visible)VisualTransformation.None else PasswordVisualTransformation(),keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Password,imeAction=if(registering)ImeAction.Next else ImeAction.Done),supportingText=if(registering)({Text("At least 8 characters")})else null,trailingIcon={IconButton(onClick={visible=!visible}){Icon(if(visible)Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,if(visible)"Hide password" else "Show password")}},modifier=Modifier.fillMaxWidth(),singleLine=true)
+  if(registering)OutlinedTextField(confirmation,{confirmation=it},label={Text("Confirm password")},enabled=!busy,visualTransformation=if(visible)VisualTransformation.None else PasswordVisualTransformation(),keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Password,imeAction=ImeAction.Done),modifier=Modifier.fillMaxWidth(),singleLine=true)
+  Button(onClick={vm.authenticate(email,password,if(registering)confirmation else null){password="";confirmation=""}},enabled=!busy&&email.isNotBlank()&&password.isNotEmpty(),modifier=Modifier.fillMaxWidth()) {Text(if(registering)"Create account" else "Sign in")}
+  TextButton(onClick={registering=!registering;password="";confirmation="";visible=false;vm.dismiss()},enabled=!busy){Text(if(registering)"Already have an account? Sign in" else "New here? Create an account")}
+  Text("Forgot your password or previously signed in by email code? Contact the project administrator to set a password.",style=MaterialTheme.typography.bodySmall)
  }
 }
 @Composable fun Heading(title:String,description:String) { Text(title,style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.SemiBold);Spacer(Modifier.height(4.dp));Text(description,style=MaterialTheme.typography.bodyMedium) }

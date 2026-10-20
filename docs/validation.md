@@ -4,9 +4,9 @@
 
 ## Passed locally
 
-- `./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug`: builds an installable debug-signed APK; seven JUnit domain tests pass; lint has no errors. Dependency update and launcher icon warnings remain. Versions are pinned as a compatible set; they are not claimed to be the newest versions.
-- `python3 scripts/test_backend.py`: **47 passed assertions/checks**, with output in [backend-test-results.txt](backend-test-results.txt). It applies both migrations to a fresh PostgreSQL 16 container. Business assertions verify token-protected/one-time bootstrap, thaal scaling, single buffer application, observance exclusion, duplicate requests, idempotency payload mismatch, stock shortages, invoice/receipt separation, partial receipts, over-receipt rejection, supplier return/reversal, one-time reversal, partial payments, reservations/release, stale versions, production retry/completion checks, negative stock, balanced journals, invoice/payment distinction, invitation email matching, member financial edits, label-based privilege escalation prevention, and revoked writes/reads.
-- Separate concurrent database connections verify exactly one successful initial bootstrap, exactly one successful stock issue when two would overspend, and exactly-once posting under two simultaneous identical requests.
+- `./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug`: builds an installable debug-signed APK; 14 JUnit tests pass (seven quantity/domain tests and seven password authentication flow tests); lint has no errors. Dependency update and launcher icon warnings remain. Versions are pinned as a compatible set; they are not claimed to be the newest versions.
+- `python3 scripts/test_backend.py`: **51 passed assertions/checks**, with output in [backend-test-results.txt](backend-test-results.txt). It applies all three migrations to a fresh PostgreSQL 16 container. Business assertions verify automatic profile onboarding without codes or approval, thaal scaling, single buffer application, observance exclusion, duplicate requests, idempotency payload mismatch, stock shortages, invoice/receipt separation, partial receipts, over-receipt rejection, supplier return/reversal, one-time reversal, partial payments, reservations/release, stale versions, production retry/completion checks, negative stock, balanced journals, invoice/payment distinction, registration/profile access boundaries, member financial edits, label-based privilege escalation prevention, and revoked writes/reads.
+- Separate concurrent database connections verify two concurrent registrations join exactly one workspace with exactly one set of default accounts, exactly one successful stock issue when two would overspend, and exactly-once posting under two simultaneous identical requests.
 - Queries under the `authenticated` API role verify workspace read isolation, private attachment read isolation, permitted own-workspace upload/denied foreign-workspace upload, and denial of direct stock-ledger writes.
 - BigDecimal domain tests cover kg/g conversion, rejecting mass/volume guesses, 23 × 8 = 184, upward thaal rounding, buffer scaling, shared demand shortage, nonnegative shortages and invalid yield.
 
@@ -14,19 +14,27 @@ The backend test fixture emulates `auth.uid()`, Auth users, Storage tables and a
 
 ## Hosted checks and external setup
 
-A read-only request to the supplied project's `workspace_snapshot` RPC returned HTTP 404 / PGRST202: the function was absent from the Data API schema cache. Neither migration deployment nor a successful app backend session has been claimed. Only a publishable key was provided; no project-admin/DB credentials were available to deploy migrations.
+The project is reachable. Its snapshot RPC now exists and rejects an anonymous call with permission denied, as expected. A read-only Auth settings request still reported `mailer_autoconfirm=false` (Confirm email ON) and `disable_signup=false` during this change. No dashboard setting has been changed by the agent, and migration 003 has not been deployed to the hosted project by the agent. Apply it after the previously deployed migrations 001/002, then turn Confirm email OFF before creating a password account.
 
-No email was sent to another person. SMTP, code templates, verified sign-in, real invitations, expired sessions, hosted Storage and Realtime require the setup in `superbase.md` and a real two-user acceptance run. No authoritative Bohri calendar dataset or redistribution permission was established. No calendar date is silently invented.
+No SMTP, email template, email verification or invitation is needed for the requested registration flow. Any password account can finish its profile and join the shared workspace. Positions remain descriptive; first completed setup owns the workspace. Email identifiers are not inbox-verified. Password recovery requires an identity-checked project administrator when SMTP is absent. Former OTP accounts may need an administrative password set rather than being registered again.
+
+No successful hosted password registration or end-to-end onboarding is claimed. The password tests use a fake gateway for validation, configuration refusal and session lifecycle cases; they do not exercise real Supabase signup. Hosted Storage, Realtime, expired-session recovery and multi-member device acceptance still need testing. No authoritative Bohri calendar dataset or redistribution permission was established.
 
 ## Device checks
 
-Android emulator startup was attempted twice using the available API 35 AVD, including a reduced-memory software renderer configuration. The emulator process exited with a segmentation fault before a stable boot. Therefore APK launch, screenshots, large text, dark/light layouts, touch targets, tablet adaptation, process-death restoration and Android share/file-picker interactions are **not verified on a device**. APK build success is not a substitute for those checks. No release-signing credential was supplied; the installable APK uses a development debug signature verified with apksigner. An unsigned release APK also builds successfully and is included for operator signing. The opt-in development seed was separately executed successfully against the local PostgreSQL platform fixture.
+The 0.2.0 debug APK was installed directly on the connected physical Android API 37 phone using ADB. The package launched successfully in the foreground and the email/password sign-in screen was observed. The user was interacting with the phone; no personal account credentials were entered by the agent. Screenshots containing user-entered account information are not committed. This confirms installation and login-screen rendering, not successful registration, profile completion, all screen layouts, large text, tablet adaptation or process-death restoration.
+
+The earlier emulator attempts failed during startup; they do not count as app acceptance. The installable APK is debug-signed. An unsigned release APK also builds and requires operator signing. Migration tests include an upgrade from an existing 001/002 database with an existing owner and inventory item; migration 003 preserves those records and enrolls an additional member in the same workspace. API users are denied direct calls to the private legacy operational function.
+
+## Password flow checks
+
+Seven additional JUnit tests cover email normalization, preservation of password whitespace, password sign-in without registration, refusing signup before it can send an email when confirmation is enabled, rejecting registration without a returned session, mismatched passwords, invalid addresses, blank sign-in passwords and short new passwords. Passwords are not stored in saveable Compose state, Room drafts or snapshots. Server-side password policy/rate-limit enforcement remains Supabase Auth's responsibility.
 
 ## Acceptance scenarios
 
 | Brief scenario | Evidence and current limit |
 |---|---|
-| Secretary claims workspace and invites member | Database bootstrap, invitation and owner checks pass; real email/device flow pending |
+| New member registers and completes a profile | Replaced by open password registration/profile setup at the user’s request; database onboarding/owner checks pass, full hosted flow pending |
 | Two members see/edit same menu | Backend membership/version mechanisms implemented; simultaneous device UI/Realtime run pending |
 | Menu generates requirements and shortages | SQL scaling and domain tests pass; combined shopping view is implemented; full UI scenario pending |
 | Purchase received once | Partial receipt and duplicate receipt tests pass |
@@ -48,7 +56,7 @@ Additional local assertions cover FEFO expiry ordering, reconciliation and rever
 - No per-service production demand override, recommendation engine, forecast from historical waste, per-event actual-cost summary, per-tiffin cost report, reconciliation report or date-range reporting/search/filter suite. Journal CSV and underlying consumption costs exist.
 - Menu plans are a chronological service list; no weekly grid, full-week copying, holiday calendar or service suspension configuration. Copying an individual service, cancellation and multiple services per date are supported.
 - Calendar uses manually maintained mappings with source/verification; no automatic conversion, licensed import, calendar provider plugin interface, supported continuous date-range guarantee, month grid or automatic community observance feed.
-- Basic tasks, notes and activity exist; no in-app notification inbox/preferences, push, automated invitation mail, OCR or reviewed import UI.
+- Basic tasks, notes and activity exist; no in-app notification inbox/preferences, push, OCR or reviewed import UI.
 - Kitchen defaults and a record-derived setup checklist are present; a full staged/resumable onboarding wizard is not. One active workspace is selected automatically; multi-workspace selection is not provided.
 - UI strings have not all been extracted for localization. Adaptive tablet layouts and comprehensive accessibility/device QA are pending. A single snapshot RPC loads all records, so large historical datasets need pagination.
 

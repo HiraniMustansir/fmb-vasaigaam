@@ -1,14 +1,13 @@
--- Opt-in development data only. Requires a pre-existing verified Auth user.
+-- Opt-in development data only. Requires a pre-existing password Auth user with confirmation disabled.
 begin;
 do $$
 declare u uuid; w uuid; item uuid; recipe uuid; begin
  if coalesce(current_setting('fmb.allow_demo_seed',true),'')<>'yes' then raise exception 'Development seed disabled. Explicitly set fmb.allow_demo_seed=yes on a separate development database'; end if;
  select id into u from auth.users where email='fmb-owner@example.test' and email_confirmed_at is not null;
- if u is null then raise exception 'Create verified development Auth user fmb-owner@example.test first'; end if;
+ if u is null then raise exception 'Create development password Auth user fmb-owner@example.test first'; end if;
  if exists(select 1 from public.workspaces) then raise exception 'Seed requires an empty development workspace'; end if;
  perform set_config('request.jwt.claim.sub',u::text,true);
- insert into public.bootstrap_authorizations values(true,'fmb-owner@example.test',encode(extensions.digest('development-only-token','sha256'),'hex'),now()+interval '5 minutes',null);
- w:=(public.execute_command('bootstrap','{"name":"DEMO Secretary","token":"development-only-token"}',gen_random_uuid())->>'id')::uuid;
+ w:=(public.execute_command('onboarding','{"name":"DEMO Secretary","position":"Secretary"}',gen_random_uuid())->>'id')::uuid;
  update public.workspaces set name='FMB Vasaigaam • DEMO',settings='{"default_tiffins":100,"people_per_thaal":8,"kitchen_name":"Demonstration kitchen"}' where id=w;
  item:=(public.execute_command('item',jsonb_build_object('workspace_id',w,'name','Rice (DEMO)','unit','kg','minimum',10),gen_random_uuid())->>'id')::uuid;
  perform public.execute_command('stock',jsonb_build_object('workspace_id',w,'item_id',item,'kind','opening','quantity',50,'unit_cost',60,'reason','Development opening stock'),gen_random_uuid());

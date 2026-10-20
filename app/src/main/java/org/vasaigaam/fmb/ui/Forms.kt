@@ -11,8 +11,7 @@ fun form(kind:String,data:JsonObject,initial:JsonObject=JsonObject(emptyMap())):
  fun opts(vararg s:String)=s.map { it to it.replaceFirstChar { c->c.uppercase() } }
  val date=LocalDate.now(java.time.ZoneId.of("Asia/Kolkata")).toString()
  val fields=when(kind) {
- "bootstrap"->listOf(f("name","Your name"),f("token","Owner authorization code"))
- "join"->listOf(f("name","Your name"),f("position","Committee position","Committee Member"),f("invitation_id","Invitation",opts=data.rows("invitations").map { it.str("id") to it.str("email") }))
+ "onboarding"->listOf(f("name","Your name"),f("position","Committee position","Committee Member"))
  "settings"->listOf(f("kitchen_name","Kitchen name","FMB Vasaigaam"),f("default_tiffins","Default tiffins","0"),f("people_per_thaal","Default people per thaal","8"))
  "item"->listOf(f("name","Item name"),f("unit","Base unit","kg",opts("kg","g","l","ml","each")),f("minimum","Low stock threshold","0"),f("category","Category","Ingredient"),f("location","Storage location",optional=true))
  "supplier"->listOf(f("name","Supplier name"),f("phone","Phone",optional=true),f("notes","Notes",optional=true))
@@ -25,7 +24,6 @@ fun form(kind:String,data:JsonObject,initial:JsonObject=JsonObject(emptyMap())):
  "reverse_stock"->listOf(f("id","Movement",opts=data.rows("stock_movements").filter{it.str("kind") !in listOf("consumption","reversal")}.map{it.str("id") to "${it.str("kind")} ${it.str("quantity")} • ${it.str("reason")}"}),f("reason","Correction reason"))
  "payment"->listOf(f("invoice_id","Invoice",opts=choices("invoices","number")),f("amount","Payment amount ₹"),f("account","Paid from","cash",opts("cash","bank")))
  "money"->listOf(f("kind","Record type","expense",opts("expense","advance","settlement","member_expense","reimbursement","contribution","opening")),f("description","Description"),f("amount","Amount ₹"),f("account","Cash / bank","cash",opts("cash","bank")),f("member_id","Member (advance / settlement)",opts=data.rows("memberships").map { it.str("user_id") to it.str("name") },optional=true))
- "invite"->listOf(f("email","Approved member email"))
  "revoke","transfer"->listOf(f("user_id","Member",opts=data.rows("memberships").filter { it.str("active")=="true" }.map { it.str("user_id") to it.str("name") }))
  "profile"->listOf(f("name","Your name"),f("position","Position label"))
  "calendar"->listOf(f("gregorian","Gregorian date • YYYY-MM-DD",date),f("hijri","Bohri Hijri date"),f("source","Source and verification note"),f("verified","Verified","false",opts("false","true")))
@@ -34,5 +32,5 @@ fun form(kind:String,data:JsonObject,initial:JsonObject=JsonObject(emptyMap())):
  "reverse_journal"->listOf(f("id","Journal entry",opts=choices("journal_entries","description")),f("reason","Reason for reversal"))
  else->emptyList()
  }
- return Form(kind, when(kind) { "stock"->"Record stock movement"; "money"->"Record money"; "service"->"Plan menu or Miqaat"; "production"->"Confirm cooking"; "bootstrap"->"Set up committee workspace"; "join"->"Accept invitation"; else->kind.replace('_',' ').replaceFirstChar { it.uppercase() } },fields,when(kind){"recipe"->"ingredients";"invoice"->"lines";"production"->"consumption";"service"->"recipe_ids";else->null},initial)
+ return Form(kind, when(kind) { "stock"->"Record stock movement"; "money"->"Record money"; "service"->"Plan menu or Miqaat"; "production"->"Confirm cooking"; "onboarding"->"Complete your profile"; else->kind.replace('_',' ').replaceFirstChar { it.uppercase() } },fields,when(kind){"recipe"->"ingredients";"invoice"->"lines";"production"->"consumption";"service"->"recipe_ids";else->null},initial)
 }
