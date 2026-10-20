@@ -2,23 +2,27 @@
 
 Native Kotlin Android committee app for the Vasai Gaam FMB kitchen. Ivory, emerald and gold Material 3 UI uses the supplied Anjuman E Badri logo.
 
-**Status: initial implementation, not production-ready.** The APK builds and important database rules pass local tests. Hosted Supabase setup, end-to-end device workflows and the full acceptance brief are not yet verified. See [validation](docs/validation.md) for scope and gaps.
+**Status: signed release candidate (0.4.0).** Core workflows build and pass local checks, and the existing signed-in phone loads its hosted workspace. Full hosted multi-member acceptance and several broader brief requirements remain outstanding. See [validation](docs/validation.md) for scope and gaps.
 
 ## APK
 
-Install [artifacts/FMB-Vasaigaam-0.3.0-debug.apk](artifacts/FMB-Vasaigaam-0.3.0-debug.apk) on Android 8.0+ (API 26). This is an installable **debug-signed evaluation build**. It requires the backend setup in [superbase.md](superbase.md). The project URL and client-safe publishable key supplied by the owner are compiled into this build; they are not deployment credentials.
+Download the [signed release APK](artifacts/FMB-Vasaigaam-0.4.0-release.apk) for Android 8.0+ (API 26). This is a directly installable release candidate, not an unsigned APK. It requires the backend setup in [superbase.md](superbase.md).
 
-An [unsigned release APK](artifacts/FMB-Vasaigaam-0.3.0-release-unsigned.apk) is also included for the operator to sign; it cannot be installed until signed.
+For existing evaluation installations, the [updated debug APK](artifacts/FMB-Vasaigaam-0.4.0-debug.apk) preserves the debug signing identity. The connected phone was updated with this build in place. **The release APK cannot replace a debug installation directly because their signing keys differ.** See [migration and private key backup instructions](docs/release-signing.md) before switching. Later signed releases can update each other in place.
 
-Check the APK against [SHA256SUMS](artifacts/SHA256SUMS). Release signing is described in [docs/release-signing.md](docs/release-signing.md). Never distribute a debug build as a production release.
+Checksums: [SHA256SUMS](artifacts/SHA256SUMS). Private signing files are stored outside Git. No administrator credential is embedded; the supplied publishable key is a public client identifier.
+
+New in 0.4.0: cohesive light/dark themes, adaptive launcher icon, wrapped quick actions, dashboard shortcuts, weekly date navigation, service status cards, local-time freshness, financial date-range summaries, per-service ingredient costs, CSV formula protection, duplicate-tap protection and explicit sign-out draft-loss confirmation.
+
+[Develop directly on your phone](docs/device-development.md) without manually downloading every build. [Release scope and remaining work](docs/release-0.4.0.md).
 
 ## Implemented connected workflows
 
 - Email/password registration and sign-in without SMTP; name/position onboarding automatically joins the shared workspace; member revocation and ownership transfer. Position labels confer no extra privileges.
-- Home attention list and setup checklist; chronological menus and Miqaats; recipes with base yield, ingredient lines, allergens and preserved versions; service copying and Android sharing.
+- Home attention list and setup checklist; weekly menu navigation and chronological Miqaats; recipes with base yield, ingredient lines, allergens and preserved versions; service copying and Android sharing.
 - Demand scaling, thaal counts, buffers, combined shortages, reservations, actual cooking, partial production and deliberate additional production postings. Observances create no food demand.
 - Stock ledger, openings, partial invoice receipts, supplier returns, wastage, reconciliation, reversals and FEFO physical lot allocation. Negative available stock is blocked.
-- Supplier invoices, partial payments, cash/bank, expenses, contributions, advances, settlements and reimbursements. Balanced double-entry journals; reversals retain history. CSV sharing.
+- Supplier invoices, partial payments, cash/bank, expenses, contributions, advances, settlements and reimbursements. Balanced double-entry journals; reversals retain history. CSV sharing and date-range accounts summaries; per-service ingredient cost and cost per prepared tiffin/thaal.
 - Native offline Bohri/Misri month calendar based on dawoodibohracalendar.in, Gregorian dates, source links, local Miqaats and verified manual corrections; tasks, notes, activity; private receipt uploads and short-lived attachment access.
 - Room drafts and read cache, visible freshness, Realtime invalidation plus 30-second foreground polling, and WorkManager membership checks. Drafts never post automatically.
 
@@ -28,7 +32,7 @@ Requires JDK 17, Android SDK 36 / Build Tools 35.0.0 and network access to Googl
 
 ```sh
 # Set sdk.dir=/absolute/path/to/Android/Sdk in ignored local.properties
-./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
+./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug :app:assembleRelease :app:lintRelease
 python3 scripts/test_backend.py  # requires Docker; starts/removes an isolated PostgreSQL 16 container
 ```
 

@@ -1,6 +1,6 @@
 # Supabase setup — email and password, no SMTP
 
-The current app (0.3.0) uses this flow:
+The current app (0.4.0) uses this flow:
 
 **Create account → enter your name and committee position → Finish setup → Home.**
 
@@ -8,7 +8,7 @@ No email code, invitation, owner approval, or bootstrap authorization is needed.
 
 ## What I checked
 
-On 20 October 2026, the project at `https://bdeqckqvvbllagezkugv.supabase.co` was reachable. Email sign-in and Auth account creation were enabled. The `workspace_snapshot` RPC was present and correctly refused an anonymous call. **Email confirmation was still enabled** (`mailer_autoconfirm=false`), so change that setting in Step 2.
+On 20 October 2026, the project at `https://bdeqckqvvbllagezkugv.supabase.co` was reachable. Email sign-in and Auth account creation were enabled. The `workspace_snapshot` RPC was present and correctly refused an anonymous call. A fresh read-only check now confirms **email confirmation is disabled** (`mailer_autoconfirm=true`), email/password sign-in is enabled and signups are allowed. The updated phone also restored its existing session and read the hosted workspace successfully. Step 2 is already satisfied; keep confirmation disabled for this flow.
 
 I have not changed dashboard settings or deployed the new registration migration to your hosted project. The publishable key is client-safe configuration, not an administrator credential.
 

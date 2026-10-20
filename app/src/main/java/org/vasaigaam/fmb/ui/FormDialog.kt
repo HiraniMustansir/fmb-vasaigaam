@@ -15,6 +15,7 @@ import org.vasaigaam.fmb.data.*
 import java.util.UUID
 
 @Composable fun FormDialog(form:Form,data:JsonObject,vm:FmbViewModel,existingId:String?,onDismiss:()->Unit) {
+ val state by vm.state.collectAsState()
  val w=(data["workspace"] as? JsonObject)?.str("id").orEmpty()
  val values=remember(form) { mutableStateMapOf<String,String>().apply { form.fields.forEach { put(it.key,form.initial.str(it.key).ifEmpty{it.default.ifEmpty{it.options.firstOrNull()?.first.orEmpty()}}) } } }
  val lines=remember(form) { mutableStateListOf<JsonObject>().apply { addAll(form.initial.rows(form.lines.orEmpty())) } }
@@ -37,10 +38,11 @@ import java.util.UUID
  val current=payload().toString()
  val draft=Draft(key,vm.repo.user,w,form.kind,current)
  val canDraft=form.kind!="onboarding"
+ LaunchedEffect(state.busy,state.error) { if(!state.busy&&state.error!=null)submitting=false }
  LaunchedEffect(current,submitting) { if(canDraft&&!submitting) { delay(700);vm.repo.save(draft) } }
  Dialog(onDismissRequest=onDismiss,properties=DialogProperties(usePlatformDefaultWidth=false)) {
   Surface(Modifier.fillMaxSize(),color=MaterialTheme.colorScheme.background) {
-   Column(Modifier.fillMaxSize().systemBarsPadding()) {
+   Column(Modifier.fillMaxSize().systemBarsPadding().imePadding()) {
     Text(form.title,Modifier.padding(20.dp),style=MaterialTheme.typography.headlineSmall)
     Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal=20.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
      if(canDraft) Text("Draft • Changes are saved on this device. Review before posting.",style=MaterialTheme.typography.labelMedium)
@@ -69,13 +71,12 @@ import java.util.UUID
       if(data.rows("items").isEmpty()) Text("Add stock items first.")
      }
      if(validation.isNotEmpty()) Text(validation,color=MaterialTheme.colorScheme.error)
-     val state by vm.state.collectAsState()
      state.error?.let{Text(it,color=MaterialTheme.colorScheme.error)}
      Spacer(Modifier.height(20.dp))
     }
     Row(Modifier.fillMaxWidth().padding(16.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-     TextButton(onClick={if(canDraft)vm.save(draft,onDismiss)else onDismiss()}){Text(if(canDraft)"Close draft" else "Close")}
-     Button(onClick={
+     TextButton(enabled=!state.busy,onClick={if(canDraft)vm.save(draft,onDismiss)else onDismiss()}){Text(if(canDraft)"Close draft" else "Close")}
+     Button(enabled=!state.busy,onClick={
       val missing=form.fields.filter{!it.optional&&values[it.key].isNullOrBlank()}
       validation=when {
        missing.isNotEmpty()->"Complete: "+missing.joinToString{it.label}
@@ -89,7 +90,7 @@ import java.util.UUID
    }
   }
  }
- if(confirm) AlertDialog(onDismissRequest={confirm=false},title={Text("Confirm ${form.title.lowercase()}?")},text={Text("This action will be sent to the shared workspace. Stock and financial postings require server confirmation.")},confirmButton={TextButton(onClick={confirm=false;submitting=true;vm.submit(draft,onDismiss)}){Text("Confirm")}},dismissButton={TextButton(onClick={confirm=false}){Text("Review again")}})
+ if(confirm) AlertDialog(onDismissRequest={confirm=false},title={Text("Confirm ${form.title.lowercase()}?")},text={Text("This action will be sent to the shared workspace. Stock and financial postings require server confirmation.")},confirmButton={TextButton(enabled=!state.busy,onClick={confirm=false;submitting=true;vm.submit(draft,onDismiss)}){Text("Confirm")}},dismissButton={TextButton(onClick={confirm=false}){Text("Review again")}})
 }
 @Composable fun Choice(label:String,value:String,choices:List<Pair<String,String>>,optional:Boolean=false,onChange:(String)->Unit) {
  var expanded by remember{mutableStateOf(false)}

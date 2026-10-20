@@ -8,11 +8,13 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
@@ -45,9 +47,8 @@ import java.util.Locale
 
 class MainActivity:ComponentActivity() {
  private val repository:Repository by inject()
- override fun onCreate(savedInstanceState:Bundle?) { super.onCreate(savedInstanceState); setContent {
-  val dark=isSystemInDarkTheme()
-  MaterialTheme(colorScheme=if(dark) darkColorScheme(primary=Color(0xFF9ED6BF),secondary=Color(0xFFD6BA71)) else lightColorScheme(primary=Color(0xFF145E4D),secondary=Color(0xFF8B6B26),background=Color(0xFFFAF7EF),surface=Color(0xFFFAF7EF))) {
+ override fun onCreate(savedInstanceState:Bundle?) { super.onCreate(savedInstanceState); enableEdgeToEdge(); setContent {
+  FmbTheme {
    val vm=viewModel { FmbViewModel(repository) }
    FmbScreen(vm) { content,type->startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply { this.type=type; putExtra(Intent.EXTRA_TEXT,content) },"Share committee records")) }
   }
@@ -61,11 +62,14 @@ fun JsonObject.amount(k:String)=money.format(num(k))
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable fun FmbScreen(vm:FmbViewModel,share:(String,String)->Unit) {
  val context=LocalContext.current
+ var confirmLogout by remember { mutableStateOf(false) }
+ var week by rememberSaveable { mutableStateOf(org.vasaigaam.fmb.domain.Reports.weekStart(LocalDate.now(ZoneId.of("Asia/Kolkata"))).toString()) }
+ var allMenus by rememberSaveable { mutableStateOf(false) }
  val state by vm.state.collectAsStateWithLifecycle()
  var receiptDialog by remember { mutableStateOf(false) }
  var receiptSubject by rememberSaveable { mutableStateOf("") }
  val picker=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri->
-  if(uri!=null) vm.run {
+  if(uri!=null) vm.runAndReload {
    val bytes=withContext(Dispatchers.IO) {
     context.contentResolver.openInputStream(uri)?.use { stream->
      val output=java.io.ByteArrayOutputStream();val buffer=ByteArray(8192)
@@ -74,13 +78,15 @@ fun JsonObject.amount(k:String)=money.format(num(k))
     }?:error("Could not read attachment")
    }
    val ws=(state.data["workspace"] as? JsonObject)?.str("id").orEmpty()
-   vm.repo.attach(ws,receiptSubject,bytes,context.contentResolver.getType(uri).orEmpty());vm.reload()
+   vm.repo.attach(ws,receiptSubject,bytes,context.contentResolver.getType(uri).orEmpty())
   }
  }
  var tab by rememberSaveable { mutableIntStateOf(0) }
  var more by rememberSaveable { mutableStateOf("Overview") }
  var editing by remember { mutableStateOf<Form?>(null) }
  var draftId by remember { mutableStateOf<String?>(null) }
+ val listState=rememberLazyListState()
+ LaunchedEffect(tab,more) { listState.scrollToItem(0) }
  val data=state.data
  val workspace=data["workspace"] as? JsonObject
  val w=workspace?.str("id").orEmpty()
@@ -90,10 +96,10 @@ fun JsonObject.amount(k:String)=money.format(num(k))
   if(state.signedIn&&data.str("needs_onboarding")=="true"&&editing==null) {draftId=null;editing=form("onboarding",data)}
  }
  val owner=workspace?.str("owner_id")==vm.repo.user
- Scaffold(topBar={ TopAppBar(title={ Column { Text("FMB Vasaigaam",fontWeight=FontWeight.Bold); Text("Committee kitchen workspace",style=MaterialTheme.typography.labelMedium) } },actions={ if(state.signedIn) { IconButton(onClick={vm.reload()}){Icon(Icons.Outlined.Refresh,"Refresh")}; IconButton(onClick={vm.logout()}){Icon(Icons.Outlined.Logout,"Sign out")} } }) },bottomBar={ if(w.isNotEmpty()) NavigationBar {
+ Scaffold(topBar={ TopAppBar(title={ Column { Text("FMB Vasaigaam",fontWeight=FontWeight.Bold); Text("Committee kitchen workspace",style=MaterialTheme.typography.labelMedium) } },actions={ if(state.signedIn) { IconButton(onClick={vm.reload()},enabled=!state.busy){Icon(Icons.Outlined.Refresh,"Refresh")}; IconButton(onClick={confirmLogout=true},enabled=!state.busy){Icon(Icons.Outlined.Logout,"Sign out")} } }) },bottomBar={ if(w.isNotEmpty()) NavigationBar {
   listOf("Home" to Icons.Outlined.Home,"Menu" to Icons.Outlined.RestaurantMenu,"Stock" to Icons.Outlined.Inventory2,"Miqaats" to Icons.Outlined.CalendarMonth,"Accounts" to Icons.Outlined.AccountBalanceWallet).forEachIndexed { i,p->NavigationBarItem(selected=tab==i,onClick={tab=i;more="Overview"},icon={Icon(p.second,p.first)},label={Text(p.first)}) }
  } }) { pad->
- Column(Modifier.fillMaxSize().padding(pad)) {
+ Box(Modifier.fillMaxSize().padding(pad),contentAlignment=Alignment.TopCenter) { Column(Modifier.widthIn(max=840.dp).fillMaxSize()) {
   if(state.busy||state.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
   state.error?.let { error->Card(Modifier.fillMaxWidth().padding(12.dp),colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.errorContainer)) { Column(Modifier.padding(16.dp)) { Text(error); TextButton(onClick={vm.dismiss()}){Text("Dismiss")} } } }
   if(!state.signedIn) Login(vm,state.busy)
@@ -107,10 +113,10 @@ fun JsonObject.amount(k:String)=money.format(num(k))
     Button(onClick={open("onboarding")},enabled=!state.busy&&!state.loading&&data.str("needs_onboarding")=="true") {Text("Complete profile")}
    }
   }
-  else LazyColumn(Modifier.fillMaxSize(),contentPadding=PaddingValues(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
-   item { Text(if(state.error==null&&!state.cached) "Updated ${state.updated.substringAfter('T').take(5)} UTC • server records" else "Connection issue • last saved view ${state.updated}",style=MaterialTheme.typography.labelSmall) }
+  else LazyColumn(Modifier.fillMaxSize(),state=listState,contentPadding=PaddingValues(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+   item { Surface(color=if(state.cached)MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.surfaceContainer,shape=RoundedCornerShape(12.dp)) { Row(Modifier.fillMaxWidth().padding(12.dp),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalAlignment=Alignment.CenterVertically) { Icon(if(state.cached)Icons.Outlined.CloudOff else Icons.Outlined.CloudDone,null,Modifier.size(18.dp));Text(if(state.cached) "Saved view • refresh to confirm latest records" else "Server records • updated "+runCatching{java.time.Instant.parse(state.updated).atZone(ZoneId.of("Asia/Kolkata")).format(java.time.format.DateTimeFormatter.ofPattern("d MMM, h:mm a"))}.getOrDefault("just now"),style=MaterialTheme.typography.labelMedium) } } }
    item { Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-    val tools=when(tab){0->listOf("Overview","Tasks","Activity","Drafts","Members");1->listOf("Overview","Recipes","Cooking","Notes");2->listOf("Overview","Shopping","Suppliers","Purchases","Movements");3->listOf("Overview","Calendar","History");else->listOf("Overview","Journal","Balances","Receipts")}
+    val tools=when(tab){0->listOf("Overview","Tasks","Activity","Drafts","Members");1->listOf("Overview","Recipes","Cooking","Notes");2->listOf("Overview","Shopping","Suppliers","Purchases","Movements");3->listOf("Overview","Calendar","History");else->listOf("Overview","Reports","Journal","Balances","Receipts")}
     tools.forEach { FilterChip(selected=more==it,onClick={more=it},label={Text(it)}) }
    } }
    when {
@@ -121,12 +127,12 @@ fun JsonObject.amount(k:String)=money.format(num(k))
     }
     more=="Members"->{
      item { Heading("Committee","All active members can edit operational records. Position labels do not grant permissions.") }
-     item { Actions(listOf("My profile" to {open("profile")})+if(owner) listOf("Revoke access" to {open("revoke")},"Transfer ownership" to {open("transfer")},"Kitchen settings" to {open("settings",workspace?.get("settings")?.jsonObject?:JsonObject(emptyMap()))}) else emptyList()) }
+     item { Actions(listOf("My profile" to {open("profile",data.rows("memberships").find{it.str("user_id")==vm.repo.user}?:JsonObject(emptyMap()))})+if(owner) listOf("Revoke access" to {open("revoke")},"Transfer ownership" to {open("transfer")},"Kitchen settings" to {open("settings",workspace?.get("settings")?.jsonObject?:JsonObject(emptyMap()))}) else emptyList()) }
      data.rows("memberships").forEach { r->item { Record(r.str("name"),r.str("position")+if(r.str("active")=="true") " • Active" else " • Revoked") } }
     }
     more=="Tasks"->{
      item { Heading("Committee tasks","Assignments and due dates"); Actions(listOf("Add task" to {open("task")})) }
-     data.rows("tasks").sortedBy{it.str("due_date")}.forEach { r->item { Record(r.str("title"),"Due ${r.str("due_date")} • "+if(r.str("done")=="true") "Completed" else "Open") { TextButton(onClick={val payload=buildJsonObject{put("workspace_id",w);put("id",r.str("id"));put("version",r["version"]!!);put("done",r.str("done")!="true")};vm.submit(Draft(user=vm.repo.user,workspace=w,kind="task",payload=payload.toString())){}}){Text(if(r.str("done")=="true")"Reopen" else "Complete")} } } }
+     data.rows("tasks").sortedBy{it.str("due_date")}.forEach { r->item { Record(r.str("title"),"Due ${r.str("due_date")} • "+if(r.str("done")=="true") "Completed" else "Open") { TextButton(enabled=!vm.state.collectAsState().value.busy,onClick={val payload=buildJsonObject{put("workspace_id",w);put("id",r.str("id"));put("version",r["version"]!!);put("done",r.str("done")!="true")};vm.submit(Draft(user=vm.repo.user,workspace=w,kind="task",payload=payload.toString())){}}){Text(if(r.str("done")=="true")"Reopen" else "Complete")} } } }
     }
     more=="Activity"->{ item { Heading("Shared activity","Recent changes recorded by the server") }; data.rows("audit_events").forEach { r->item{Record(r.str("kind").replace('_',' '),r.str("created_at")+" • "+(data.rows("memberships").find{it.str("user_id")==r.str("actor")}?.str("name")?:"Member"))} } }
     more=="Recipes"->{
@@ -147,11 +153,13 @@ fun JsonObject.amount(k:String)=money.format(num(k))
      item { BohriCalendarPanel(data,owner,{open("calendar",it)},{open("service",it)},{context.startActivity(Intent(Intent.ACTION_VIEW,Uri.parse(org.vasaigaam.fmb.domain.SourceMisriCalendar.source)))}) }
     }
     more=="History"->{ item{Heading("Production history","Outputs, leftovers and waste")}; data.rows("production_runs").forEach{r->item{Record(data.rows("services").find{it.str("id")==r.str("service_id")}?.str("title").orEmpty(),"Prepared ${r.str("prepared")} • Served ${r.str("distributed")}\nLeftovers ${r.str("leftovers")} • Waste ${r.str("waste")}\n${r.str("notes")}")}} }
+    more=="Reports"->{ item { FinancialReport(data) } }
     more=="Journal"->{ item{Actions(listOf("Reverse record" to {open("reverse_journal")},"Share CSV" to {share(journalCsv(data),"text/csv")}))};data.rows("journal_entries").sortedByDescending{it.str("created_at")}.forEach{r->item{Record(r.str("description"),"${r.str("kind")} • ${r.str("created_at")}\n"+data.rows("journal_lines").filter{it.str("entry_id")==r.str("id")}.joinToString("\n"){"${it.str("account_code")}: Dr ${it.amount("debit")} / Cr ${it.amount("credit")}"})}} }
     more=="Receipts"->{item{Heading("Receipts & evidence","Private JPEG, PNG and PDF files. Attach evidence after reviewing the source; uploads never post stock or money.");Actions(listOf("Upload receipt" to {receiptSubject="";receiptDialog=true}))};data.rows("attachments").forEach{r->item{Record(r.str("subject"),r.str("path").substringAfter('/')){TextButton(onClick={vm.run{val url=vm.repo.attachmentUrl(r.str("path"));context.startActivity(Intent(Intent.ACTION_VIEW,Uri.parse(url)))}}){Text("Open attachment")}}}}}
     more=="Balances"->{item{Heading("Account balances","Debit less credit. Negative payable balances represent money owed.")};data.rows("accounts").forEach{r->val balance=data.rows("journal_lines").filter{it.str("account_code")==r.str("code")}.fold(BigDecimal.ZERO){a,b->a+b.num("debit")-b.num("credit")};item{Record(r.str("name"),money.format(balance))}}}
     tab==0->{
      item { Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(16.dp)) { Image(painterResource(R.drawable.jamaat_logo),"Jamaat logo",Modifier.size(76.dp));Column{Text("Khidmat, together",style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.Bold);Text(LocalDate.now(ZoneId.of("Asia/Kolkata")).toString());Text(currentBohriLabel(data),style=MaterialTheme.typography.labelMedium)} } }
+     item { WorkspaceSummary(data,drafts.size,{more="Tasks"},{more="Drafts"}) }
      item { Actions(listOf("Plan menu" to {open("service")},"Record stock" to {open("stock")},"Add bill" to {open("invoice")},"Add expense" to {open("money")})) }
      item {
       val incomplete=listOf("Ingredients" to data.rows("items").isNotEmpty(),"Suppliers" to data.rows("suppliers").isNotEmpty(),"Recipes" to data.rows("recipes").isNotEmpty(),"Opening stock" to data.rows("stock_movements").isNotEmpty(),"Opening balances" to data.rows("journal_entries").any{it.str("kind")=="opening"},"Tiffin count" to (((workspace?.get("settings") as? JsonObject)?.num("default_tiffins")?:BigDecimal.ZERO)>BigDecimal.ZERO)).filter{!it.second}.map{it.first}
@@ -166,9 +174,13 @@ fun JsonObject.amount(k:String)=money.format(num(k))
     }
     tab==1||tab==3->{
      item{Heading(if(tab==1)"Weekly kitchen plan" else "Miqaats & gatherings",if(tab==1)"Publishing does not deduct stock. Confirm cooking to record actual consumption." else "Observances do not create cooking demand. A gathering's counts are thaals.");Actions(listOf("Plan menu or Miqaat" to {open("service")}))}
-     val rows=data.rows("services").filter{if(tab==1)it.str("kind")=="tiffin" else it.str("kind")!="tiffin"}.sortedBy{it.str("service_date")}
+     if(tab==1) item { Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) { FilterChip(!allMenus,{allMenus=false},label={Text("Week")});FilterChip(allMenus,{allMenus=true},label={Text("All plans")}) };if(!allMenus)WeekPicker(LocalDate.parse(week)){week=it.toString()} }
+     val rows=data.rows("services").filter{if(tab==1)it.str("kind")=="tiffin"&&(allMenus||it.str("service_date") in week..LocalDate.parse(week).plusDays(6).toString()) else it.str("kind")!="tiffin"}.sortedBy{it.str("service_date")}
      if(rows.isEmpty()) item{Empty("No plans yet. Create your first plan.")}
-     rows.forEach{r->item{ServiceCard(r,data,vm,w,{open("service",it)},share)}}
+     rows.groupBy{it.str("service_date")}.forEach{(date,services)->
+      item { Text(runCatching{LocalDate.parse(date).format(java.time.format.DateTimeFormatter.ofPattern("EEEE, d MMM yyyy"))}.getOrDefault(date),style=MaterialTheme.typography.titleSmall,color=MaterialTheme.colorScheme.primary,modifier=Modifier.padding(top=8.dp)) }
+      services.forEach{r->item{ServiceCard(r,data,vm,w,{open("service",it)},share)}}
+     }
     }
     tab==2->{
      item{Heading("Kitchen stock","Physical stock comes from the movement ledger. Reservations keep planned cooking separate.");Actions(listOf("Add item" to {open("item")},"Record movement" to {open("stock")},"Stock count" to {open("reconcile")},"Reverse movement" to {open("reverse_stock")}))}
@@ -177,6 +189,7 @@ fun JsonObject.amount(k:String)=money.format(num(k))
     }
     tab==4->{
      item{Heading("Accounts","INR • Bills, inventory value and cash movement are recorded separately.");Actions(listOf("Record money" to {open("money")},"Pay supplier" to {open("payment")},"Add supplier bill" to {open("invoice")}))}
+     item { Record("Cash & bank","Cash ${money.format(org.vasaigaam.fmb.domain.Reports.balance(data,"cash"))} • Bank ${money.format(org.vasaigaam.fmb.domain.Reports.balance(data,"bank"))}") }
      data.rows("invoices").forEach{r->val entryIds=data.rows("journal_entries").filter{it.str("invoice_id")==r.str("id")}.map{it.str("id")};val outstanding=data.rows("journal_lines").filter{it.str("entry_id") in entryIds&&it.str("account_code")=="payable"}.fold(BigDecimal.ZERO){a,b->a+b.num("credit")-b.num("debit")};item{Record("Bill ${r.str("number")}","Total ${r.amount("total")} • Outstanding ${money.format(outstanding)}")}}
      if(data.rows("invoices").isEmpty()) item{Empty("No supplier bills recorded.")}
     }
@@ -185,6 +198,8 @@ fun JsonObject.amount(k:String)=money.format(num(k))
   }
  }
  }
+ }
+ if(confirmLogout) AlertDialog(onDismissRequest={confirmLogout=false},title={Text("Sign out?")},text={Text("Signing out clears this device’s saved drafts and cached records. Post or review any drafts you want to keep first.")},confirmButton={TextButton(onClick={confirmLogout=false;vm.logout()}){Text("Sign out")}},dismissButton={TextButton(onClick={confirmLogout=false}){Text("Stay signed in")}})
  if(receiptDialog) AlertDialog(onDismissRequest={receiptDialog=false},title={Text("Receipt reference")},text={OutlinedTextField(receiptSubject,{receiptSubject=it},label={Text("Bill number / expense description")})},confirmButton={TextButton(onClick={receiptDialog=false;picker.launch(arrayOf("image/jpeg","image/png","application/pdf"))},enabled=receiptSubject.isNotBlank()){Text("Choose file")}},dismissButton={TextButton(onClick={receiptDialog=false}){Text("Cancel")}})
  editing?.let { f-> FormDialog(f,data,vm,draftId,onDismiss={editing=null}) }
 }
@@ -196,26 +211,28 @@ fun JsonObject.amount(k:String)=money.format(num(k))
  var password by remember{mutableStateOf("")}
  var confirmation by remember{mutableStateOf("")}
  var visible by remember{mutableStateOf(false)}
- Column(Modifier.fillMaxWidth().padding(24.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(16.dp)) {
+ Column(Modifier.widthIn(max=520.dp).fillMaxWidth().imePadding().padding(24.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(16.dp)) {
   Image(painterResource(R.drawable.jamaat_logo),"Jamaat logo",Modifier.size(128.dp).align(Alignment.CenterHorizontally))
   Text(if(registering)"Create your account" else "Welcome to FMB Vasaigaam",style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.Bold)
-  Text("Sign in with your email and password. New members can create an account and complete their committee profile.")
+  Text("Your shared kitchen, thoughtfully organised.",color=MaterialTheme.colorScheme.primary,style=MaterialTheme.typography.titleMedium)
+  Text(if(registering)"Use your email and choose a password, then add your committee name and position." else "Sign in to plan menus, manage ingredients and keep committee accounts together.")
   OutlinedTextField(email,{email=it},label={Text("Email address")},enabled=!busy,keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Email,imeAction=ImeAction.Next),modifier=Modifier.fillMaxWidth(),singleLine=true)
   OutlinedTextField(password,{password=it},label={Text("Password")},enabled=!busy,visualTransformation=if(visible)VisualTransformation.None else PasswordVisualTransformation(),keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Password,imeAction=if(registering)ImeAction.Next else ImeAction.Done),supportingText=if(registering)({Text("At least 8 characters")})else null,trailingIcon={IconButton(onClick={visible=!visible}){Icon(if(visible)Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,if(visible)"Hide password" else "Show password")}},modifier=Modifier.fillMaxWidth(),singleLine=true)
   if(registering)OutlinedTextField(confirmation,{confirmation=it},label={Text("Confirm password")},enabled=!busy,visualTransformation=if(visible)VisualTransformation.None else PasswordVisualTransformation(),keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Password,imeAction=ImeAction.Done),modifier=Modifier.fillMaxWidth(),singleLine=true)
   Button(onClick={vm.authenticate(email,password,if(registering)confirmation else null){password="";confirmation=""}},enabled=!busy&&email.isNotBlank()&&password.isNotEmpty(),modifier=Modifier.fillMaxWidth()) {Text(if(registering)"Create account" else "Sign in")}
   TextButton(onClick={registering=!registering;password="";confirmation="";visible=false;vm.dismiss()},enabled=!busy){Text(if(registering)"Already have an account? Sign in" else "New here? Create an account")}
   Text("Forgot your password or previously signed in by email code? Contact the project administrator to set a password.",style=MaterialTheme.typography.bodySmall)
+  Text("FMB Vasaigaam • ${BuildConfig.VERSION_NAME}",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
  }
 }
 @Composable fun Heading(title:String,description:String) { Text(title,style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.SemiBold);Spacer(Modifier.height(4.dp));Text(description,style=MaterialTheme.typography.bodyMedium) }
-@Composable fun Empty(text:String) { Card(Modifier.fillMaxWidth()){Text(text,Modifier.padding(24.dp))} }
-@Composable fun Record(title:String,detail:String,actions:(@Composable RowScope.()->Unit)?=null) { Card(Modifier.fillMaxWidth(),shape=RoundedCornerShape(18.dp)){Column(Modifier.padding(18.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){Text(title,style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.SemiBold);Text(detail,style=MaterialTheme.typography.bodyMedium);actions?.let{Row(Modifier.horizontalScroll(rememberScrollState()),content=it)}}} }
-@Composable fun Actions(actions:List<Pair<String,()->Unit>>) { Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)){actions.forEach{(label,action)->OutlinedButton(onClick=action){Text(label)}}} }
+@Composable fun Empty(text:String) { OutlinedCard(Modifier.fillMaxWidth()){Column(Modifier.padding(24.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){Icon(Icons.Outlined.Restaurant,null,tint=MaterialTheme.colorScheme.primary);Text(text,style=MaterialTheme.typography.bodyLarge)}} }
+@Composable fun Record(title:String,detail:String,actions:(@Composable RowScope.()->Unit)?=null) { Card(Modifier.fillMaxWidth(),shape=RoundedCornerShape(18.dp),colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surfaceContainerLow)){Column(Modifier.padding(18.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){Text(title,style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.SemiBold);Text(detail,style=MaterialTheme.typography.bodyMedium);actions?.let{Row(Modifier.horizontalScroll(rememberScrollState()),content=it)}}} }
+@Composable fun Actions(actions:List<Pair<String,()->Unit>>) { FlowRow(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)){actions.forEach{(label,action)->OutlinedButton(onClick=action){Text(label)}}} }
 @Composable fun ServiceCard(r:JsonObject,data:JsonObject,vm:FmbViewModel,w:String,edit:(JsonObject)->Unit,share:(String,String)->Unit) {
  val kind=r.str("kind");val people=r.num("planned")*r.num("people_per_thaal")
  val recipes=data.rows("service_dishes").filter{it.str("service_id")==r.str("id")}.map{d->data.rows("recipes").find{it.str("id")==d.str("recipe_id")}?.str("name").orEmpty()}
- Record(r.str("title"),"${r.str("service_date")} • ${r.str("status")}\n${recipes.joinToString(" • ")}\nPlanned ${r.str("planned")} ${if(kind=="gathering")"thaals (${fmt(people)} people)" else if(kind=="observance")"• observance only" else "tiffins"}\nConfirmed ${r.str("confirmed")} • Prepared ${r.str("prepared")} • Distributed ${r.str("distributed")}\nBuffer ${r.str("buffer")}%") {
+ ServiceRecord(r.str("title"),r.str("service_date"),r.str("status"),"${recipes.joinToString(" • ")}\nPlanned ${r.str("planned")} ${if(kind=="gathering")"thaals (${fmt(people)} people)" else if(kind=="observance")"• observance only" else "tiffins"}\nConfirmed ${r.str("confirmed")} • Prepared ${r.str("prepared")} • Distributed ${r.str("distributed")}\nBuffer ${r.str("buffer")}%") {
   if(r.str("status") !in listOf("completed","cancelled")) {
    TextButton(onClick={
     val initial=buildJsonObject {
@@ -224,10 +241,10 @@ fun JsonObject.amount(k:String)=money.format(num(k))
     }
     edit(initial)
    }) { Text("Edit") }
-   TextButton(onClick={val payload=buildJsonObject{put("workspace_id",w);put("id",r.str("id"));put("version",r["version"]!!);put("status","published")};vm.submit(Draft(user=vm.repo.user,workspace=w,kind="status",payload=payload.toString())){}}){Text("Publish")}
-   if(kind!="observance") TextButton(onClick={val payload=buildJsonObject{put("workspace_id",w);put("id",r.str("id"))};vm.submit(Draft(user=vm.repo.user,workspace=w,kind="reserve",payload=payload.toString())){}}){Text("Reserve")}
-   if(data.rows("reservations").any{it.str("service_id")==r.str("id")}) TextButton(onClick={val payload=buildJsonObject{put("workspace_id",w);put("id",r.str("id"));put("version",r["version"]!!);put("status","draft")};vm.submit(Draft(user=vm.repo.user,workspace=w,kind="status",payload=payload.toString())){}}){Text("Release reservations")}
-   TextButton(onClick={val payload=buildJsonObject{put("workspace_id",w);put("id",r.str("id"));put("version",r["version"]!!);put("status","cancelled")};vm.submit(Draft(user=vm.repo.user,workspace=w,kind="status",payload=payload.toString())){}}){Text("Cancel")}
+   TextButton(enabled=!vm.state.collectAsState().value.busy,onClick={val payload=buildJsonObject{put("workspace_id",w);put("id",r.str("id"));put("version",r["version"]!!);put("status","published")};vm.submit(Draft(user=vm.repo.user,workspace=w,kind="status",payload=payload.toString())){}}){Text("Publish")}
+   if(kind!="observance") TextButton(enabled=!vm.state.collectAsState().value.busy,onClick={val payload=buildJsonObject{put("workspace_id",w);put("id",r.str("id"))};vm.submit(Draft(user=vm.repo.user,workspace=w,kind="reserve",payload=payload.toString())){}}){Text("Reserve")}
+   if(data.rows("reservations").any{it.str("service_id")==r.str("id")}) TextButton(enabled=!vm.state.collectAsState().value.busy,onClick={val payload=buildJsonObject{put("workspace_id",w);put("id",r.str("id"));put("version",r["version"]!!);put("status","draft")};vm.submit(Draft(user=vm.repo.user,workspace=w,kind="status",payload=payload.toString())){}}){Text("Release reservations")}
+   TextButton(enabled=!vm.state.collectAsState().value.busy,onClick={val payload=buildJsonObject{put("workspace_id",w);put("id",r.str("id"));put("version",r["version"]!!);put("status","cancelled")};vm.submit(Draft(user=vm.repo.user,workspace=w,kind="status",payload=payload.toString())){}}){Text("Cancel")}
   }
   TextButton(onClick={edit(buildJsonObject {
    r.filterKeys{it !in listOf("id","version","status","prepared","distributed")}.forEach{(k,v)->put(k,v)}
@@ -237,6 +254,6 @@ fun JsonObject.amount(k:String)=money.format(num(k))
  }
 }
 fun journalCsv(data:JsonObject):String {
- fun cell(s:String)="\""+s.replace("\"","\"\"")+"\""
+ fun cell(s:String)=org.vasaigaam.fmb.domain.Reports.csvCell(s)
  return "entry,date,description,account,debit,credit\n"+data.rows("journal_lines").joinToString("\n"){l->val e=data.rows("journal_entries").find{it.str("id")==l.str("entry_id")};listOf(l.str("entry_id"),e?.str("created_at").orEmpty(),e?.str("description").orEmpty(),l.str("account_code"),l.str("debit"),l.str("credit")).joinToString(","){cell(it)}}
 }

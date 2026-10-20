@@ -1,0 +1,26 @@
+{
+  "version": "0.4.0",
+  "versionCode": 4,
+  "status": "release-candidate",
+  "package": "org.vasaigaam.fmb",
+  "minSdk": 26,
+  "targetSdk": 36,
+  "releaseCertificateSha256": "671b7fcb55c10b21e8a0bff2ec164a2faf6463c236a675a632ba0d443955a627",
+  "tests": {
+    "unit": 32,
+    "unitFailures": 0,
+    "deviceUi": 11,
+    "isolatedBackendChecks": 57,
+    "hostedFullAcceptance": false
+  },
+  "apks": {
+    "FMB-Vasaigaam-0.4.0-debug.apk": {
+      "bytes": 22930263,
+      "sha256": "cabee3664845272f1737666d53ff34d317269aef492a8518574168fec8582ab9"
+    },
+    "FMB-Vasaigaam-0.4.0-release.apk": {
+      "bytes": 15726918,
+      "sha256": "35bca715033534a3b6e96a70041e76c77f46664ff7b721a6ae30dda8a1de7ed4"
+    }
+  }
+}

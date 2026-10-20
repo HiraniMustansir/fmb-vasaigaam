@@ -6,3 +6,8 @@ local.properties
 *.keystore
 .idea/
 *.iml
+
+*.idsig
+
+__pycache__/
+*.pyc

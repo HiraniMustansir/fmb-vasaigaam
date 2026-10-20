@@ -63,8 +63,9 @@ class FmbViewModel(val repo:Repository):ViewModel() {
  }
  fun dismiss(){mutable.update{it.copy(error=null)}}
  fun run(action:suspend()->Unit){
+  if(mutable.value.busy)return
+  mutable.update{it.copy(busy=true,error=null)}
   viewModelScope.launch {
-   mutable.update{it.copy(busy=true,error=null)}
    try { action() } catch(e:Exception) {
     if(e is CancellationException) throw e
     mutable.update{it.copy(error=message(e))}
@@ -77,6 +78,13 @@ class FmbViewModel(val repo:Repository):ViewModel() {
  }
  fun logout()=run{watcher?.cancel();watched="";repo.logout();mutable.value=AppState(loading=false)}
  fun reload()=run{refresh()}
+ fun runAndReload(action:suspend()->Unit)=run {
+  action()
+  try { refresh() } catch(e:Exception) {
+   if(e is CancellationException)throw e
+   mutable.update{it.copy(error="The action completed. Tap Refresh to load the latest records.",cached=true)}
+  }
+ }
  private suspend fun refresh(){
   val data=repo.snapshot()
   val w=(data["workspace"] as? JsonObject)?.str("id").orEmpty()

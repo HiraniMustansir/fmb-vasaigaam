@@ -13,7 +13,7 @@ android {
  compileSdk = 36
  defaultConfig {
   applicationId = "org.vasaigaam.fmb"; minSdk = 26; targetSdk = 36
-  versionCode = 3; versionName = "0.3.0"
+  versionCode = 4; versionName = "0.4.0"
   testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   buildConfigField("String", "SUPABASE_URL", "\"${setting("SUPABASE_URL", "https://bdeqckqvvbllagezkugv.supabase.co")}\"")
   buildConfigField("String", "SUPABASE_KEY", "\"${setting("SUPABASE_PUBLISHABLE_KEY", "sb_publishable_PUg7UQoCg5UHJluiBGn9Bw_x8g6-eL4")}\"")
@@ -21,7 +21,17 @@ android {
  buildFeatures { compose = true; buildConfig = true }
  compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
  kotlinOptions { jvmTarget = "17" }
- buildTypes { release { isMinifyEnabled = false } }
+ // QA runs use a different package, protecting the committee app and its local drafts.
+ testBuildType = "qa"
+ buildTypes {
+  release { isMinifyEnabled = false }
+  create("qa") {
+   initWith(getByName("debug"))
+   applicationIdSuffix = ".qa"
+   versionNameSuffix = "-qa"
+   matchingFallbacks += listOf("debug")
+  }
+ }
  packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
 }
 dependencies {
@@ -47,4 +57,5 @@ dependencies {
  androidTestImplementation("androidx.compose.ui:ui-test-junit4")
  androidTestImplementation("androidx.test:runner:1.6.2")
  debugImplementation("androidx.compose.ui:ui-test-manifest")
+ add("qaImplementation", "androidx.compose.ui:ui-test-manifest")
 }

@@ -1,6 +1,6 @@
 # Validation report — 20 October 2026
 
-**Initial implementation, not production-ready.** This report distinguishes local test evidence from hosted and device acceptance. The original brief is broader than the implemented workflows.
+**0.4.0 signed release candidate; full production acceptance pending.** This report distinguishes local test evidence from hosted and device acceptance. The original brief is broader than the implemented workflows.
 
 ## Passed locally
 
@@ -14,7 +14,7 @@ The backend test fixture emulates `auth.uid()`, Auth users, Storage tables and a
 
 ## Hosted checks and external setup
 
-The project is reachable. Its snapshot RPC now exists and rejects an anonymous call with permission denied, as expected. A read-only Auth settings request still reported `mailer_autoconfirm=false` (Confirm email ON) and `disable_signup=false` during this change. No dashboard setting has been changed by the agent, and migration 003 has not been deployed to the hosted project by the agent. Apply it after the previously deployed migrations 001/002, then turn Confirm email OFF before creating a password account.
+The project is reachable. Its snapshot RPC now exists and rejects an anonymous call with permission denied, as expected. A fresh read-only Auth settings request for 0.4.0 reports `mailer_autoconfirm=true` (Confirm email OFF), `disable_signup=false` and email/password enabled. The older registration-change check had reported confirmation ON; that earlier observation is superseded. No dashboard setting has been changed by the agent, and migration 003 has not been deployed to the hosted project by the agent. Confirm email is now already OFF. Migration 003 deployment still must be confirmed by the project operator if not already applied; do not rerun its function rename blindly.
 
 No SMTP, email template, email verification or invitation is needed for the requested registration flow. Any password account can finish its profile and join the shared workspace. Positions remain descriptive; first completed setup owns the workspace. Email identifiers are not inbox-verified. Password recovery requires an identity-checked project administrator when SMTP is absent. Former OTP accounts may need an administrative password set rather than being registered again.
 
@@ -63,11 +63,21 @@ Additional local assertions cover FEFO expiry ordering, reconciliation and rever
 
 - No purchase orders, manual shopping lines, confirmed incoming quantity management, invoice tax/discount/extra charges, invoice cancellation or invoice editing/reversal workflow. Only original invoice lines, receipts, returns and payments are supported. Shopping shortages do not deduct unreceived invoice quantities or purchase-order promises.
 - No item aliases/conversion editor, purchasing pack UI or configurable tiffin/thaal portion profiles. Entry uses canonical ingredient units. `item_conversions` is schema preparation only. Recipe overrides, production consumption reversal and full amendment/correction chains are not complete.
-- No per-service production demand override, recommendation engine, forecast from historical waste, per-event actual-cost summary, per-tiffin cost report, reconciliation report or date-range reporting/search/filter suite. Journal CSV and underlying consumption costs exist.
-- Menu plans are a chronological service list; no weekly grid, full-week copying, holiday calendar or service suspension configuration. Copying an individual service, cancellation and multiple services per date are supported.
+- No per-service production demand override, recommendation engine, forecast from historical waste, reconciliation report or full reporting/search/filter suite. Version 0.4.0 adds date-range ledger summaries and all-time per-service ingredient costs/cost per prepared unit; these exclude overhead allocation and do not constitute a profit or full event-cost report.
+- Menu plans have weekly date navigation and date-grouped cards in 0.4.0; no seven-column weekly grid, full-week copying, holiday calendar or service suspension configuration. Copying an individual service, cancellation and multiple services per date are supported.
 - Calendar now has an offline source-referenced Misri provider, native month grids and individual-date corrections. Community/religious verification, authorized automatic observance import and live external-source browser integration remain unverified. See [calendar.md](calendar.md).
 - Basic tasks, notes and activity exist; no in-app notification inbox/preferences, push, OCR or reviewed import UI.
 - Kitchen defaults and a record-derived setup checklist are present; a full staged/resumable onboarding wizard is not. One active workspace is selected automatically; multi-workspace selection is not provided.
 - UI strings have not all been extracted for localization. Adaptive tablet layouts and comprehensive accessibility/device QA are pending. A single snapshot RPC loads all records, so large historical datasets need pagination.
 
 Use a development project and evaluation data until critical remaining workflows have been tested and the relevant missing features are completed. See `docs/operator-guide.md` for supported procedures and `superbase.md` for deployment.
+
+## Release-candidate checks in 0.4.0
+
+The full debug/release build and both lint tasks pass. **32 unit tests** pass, adding seven report/CSV checks for India date boundaries, inclusive ranges, reversals, ingredient-cost aggregation, missing records, Monday week boundaries, invalid ranges and formula/quote escaping. All **57 PostgreSQL checks** pass again with the existing migrations.
+
+**11 physical Android API 37 UI tests** pass: the seven calendar scenarios plus weekly navigation, invalid report input, dark reports and dashboard shortcuts. Tests use the separate QA package and isolated data. No target committee-app uninstall was performed. Screenshots were inspected for the dark report, sign-in, live Home and Accounts screens; this does not establish comprehensive accessibility, tablet or all-form acceptance.
+
+The existing debug app was updated in place with 0.4.0. Its existing session survived; a refreshed authenticated snapshot loaded the hosted workspace, and Home, weekly menu, stock, accounts and reports rendered. No production records were posted during review. Real fresh registration, multi-member edits/transport, complete operational transactions and attachment delivery remain pending.
+
+A dedicated RSA 3072-bit signing key was generated outside Git. The signed release APK passes v2/v3 signature verification and 16 KB ZIP alignment. Its manifest has versionCode 4/versionName 0.4.0 and is not debuggable. The signed release has not replaced the debug installation on the personal phone; signature incompatibility means that would require a deliberate migration. See [release notes](release-0.4.0.md) and [key backup instructions](release-signing.md).
