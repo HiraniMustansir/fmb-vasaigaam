@@ -90,9 +90,9 @@ Android WorkManager checks membership and refreshes cached reads when connected,
 
 ## 18. Bohri calendar setup
 
-The reference [Mumineen Calendar](https://www.mumineencalendar.com/) was inspected; no licensed API or verified dataset was established. No scraping, redistributed observances or generic Hijri conversion is included. The owner maintains `calendar_mappings` using Miqaats → Calendar with a source, verification status and Gregorian date. Editing uses a version check and appends audit history. No dates are verified by default. The available verified dates are exactly the individually flagged mappings; gaps remain unverified. This version lists those mappings rather than presenting a guaranteed continuous date range or calendar month grid.
+The native app independently implements the Misri calculation referenced by [dawoodibohracalendar.in](https://dawoodibohracalendar.in/), with a chosen calculation range of 1446–1500 AH. It does not use a generic Android Islamic conversion or copy the reference’s event catalogue. There is no external calendar API/account to configure and no new database migration for the 0.3.0 calendar. Mathematical dates work offline and are labelled Calculated, not automatically verified.
 
-Workspace defaults and calculations use Asia/Kolkata civil dates at midnight. There is no sunset rollover. Confirm community conventions before adding any conversion provider. Local observance-only entries and gatherings remain separate; observances never automatically generate a meal.
+The existing `calendar_mappings` table supplies individual-date corrections. The owner uses Miqaats → Calendar → Correct selected date, with source/review note and explicit verification. Existing mappings remain compatible; conflict checks and audit history remain. Default timezone is Asia/Kolkata with midnight civil boundaries and no sunset rollover. Local observances and food gatherings stay distinct. See [calendar.md](calendar.md) for attribution, parameters, supported range, tests and remaining verification limits.
 
 ## 19. Development seed
 
@@ -129,6 +129,6 @@ Database dumps do not constitute a complete backup of Storage object bytes, SMTP
 
 ## 23. Known limits and external dependencies
 
-This initial app does not fulfill the entire attached product specification. Purchase orders/expected incoming supply, tax/discount/charges, invoice cancellation, full stock/production reversal chains, per-recipe portion profiles, demand overrides, rich reporting, continuous month calendar, calendar import, historical recommendations, OCR, localization extraction and comprehensive device accessibility tests remain work. See the precise feature/test matrix in [validation](validation.md).
+This initial app does not fulfill the entire attached product specification. Purchase orders/expected incoming supply, tax/discount/charges, invoice cancellation, full stock/production reversal chains, per-recipe portion profiles, demand overrides, rich reporting, licensed calendar/event import, historical recommendations, OCR, localization extraction and comprehensive device accessibility tests remain work. See the precise feature/test matrix in [validation](validation.md).
 
 Migration 003 deployment, Confirm email OFF, authoritative calendar data/permission, production signing and complete multi-member device acceptance require operator configuration. No successful hosted password registration or production readiness is claimed.

@@ -1,6 +1,6 @@
 # Supabase setup — email and password, no SMTP
 
-The current app (0.2.0) uses this flow:
+The current app (0.3.0) uses this flow:
 
 **Create account → enter your name and committee position → Finish setup → Home.**
 
@@ -58,7 +58,7 @@ Supabase implicitly marks password accounts confirmed when this setting is off; 
 
 ## Step 3 — Use the updated app
 
-The old 0.1.0 build has an email-code screen, so use 0.2.0 or a direct development deployment from the current source.
+The old 0.1.0 build has an email-code screen, so use 0.2.0 or newer, or a direct development deployment from the current source.
 
 1. Open FMB Vasaigaam.
 2. Tap **New here? Create an account**.
@@ -138,3 +138,7 @@ The app still requires a password session and membership before operational data
 The default workflow assumes a single committee workspace. If multiple workspaces exist in the project, the administrator must configure the intended workspace rather than allowing automatic selection.
 
 See [docs/supabase-reference.md](docs/supabase-reference.md) for migrations, backend security, Storage, Realtime, tests, development seeds, backup/restore and known limits. See [docs/validation.md](docs/validation.md) for what was actually tested.
+
+## Calendar in 0.3.0
+
+Miqaats → Calendar calculates Bohri/Misri dates offline using the user-selected reference, dawoodibohracalendar.in. It uses existing calendar mappings for reviewed corrections. No new migration, SMTP or calendar account is needed. See [docs/calendar.md](docs/calendar.md) for the date method and verification limits.

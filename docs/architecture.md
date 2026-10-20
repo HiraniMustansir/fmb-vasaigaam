@@ -26,7 +26,7 @@ Production can be partial (`complete=false`), complete, or a deliberate addition
 
 Journals contain two or more balanced lines, enforced by a deferred constraint trigger. Amounts use two decimal INR precision. Advances are assets until settled; member expenses establish reimbursement liabilities. Payment/settlement amounts cannot exceed the relevant unsettled balance. Stock movements retain their linked value journal for controlled reversal.
 
-Calendar mappings store Gregorian date, supplied Bohri date, verification/source and version. Audit history records changes. No generic Islamic conversion is used. The calendar does not infer that an observance entails food demand.
+Calendar mappings store Gregorian date, supplied Bohri date, verification/source and version. Audit history records changes. The independent `SourceMisriCalendar` implements the selected source’s anchor, alternating month lengths and leap cycle through `BohriCalendarProvider`. No Android Islamic chronology is used. Individual manual corrections override calculated labels and retain their verification state. The calendar does not infer that an observance entails food demand. See [calendar.md](calendar.md).
 
 ## Connectivity and privacy
 
@@ -36,4 +36,4 @@ The app uses email/password authentication with Confirm email disabled. It sends
 
 ## Extension boundaries
 
-A dedicated, replaceable calendar provider should be introduced before adding automatic date conversion; the current provider is the maintained mapping table. For a larger dataset, paginate snapshots and activity, introduce typed feature repositories, and split UI files by feature. There is no background queue that silently posts financial or stock drafts.
+The calendar provider interface permits a future authorized data provider; the current native provider calculates offline and layers stored individual-date corrections over it. For a larger dataset, paginate snapshots and activity, introduce typed feature repositories, and split UI files by feature. There is no background queue that silently posts financial or stock drafts.

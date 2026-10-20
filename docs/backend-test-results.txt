@@ -43,6 +43,12 @@ NOTICE:  PASS: Recipe edits preserve past production snapshots
 NOTICE:  PASS: Additional postings remain balanced
 NOTICE:  PASS: Revoked user cannot read items through RLS
 NOTICE:  PASS: Revoked user cannot read financial records
+NOTICE:  PASS: Source calendar dates can be saved without falsely marking them verified
+NOTICE:  PASS: Reviewed correction preserves source and increments its version
+NOTICE:  PASS: A stale calendar correction cannot silently overwrite a reviewed date
+NOTICE:  PASS: Calendar change history survives corrections and rejected conflicts
+NOTICE:  PASS: A descriptive Secretary label does not grant date-verification administration
+NOTICE:  PASS: Active members read the same reviewed calendar correction
 PASS: Concurrent registrations join one workspace and initialize accounts exactly once
 PASS: Two concurrent stock issues cannot overspend stock
 PASS: Concurrent identical requests return success and post once

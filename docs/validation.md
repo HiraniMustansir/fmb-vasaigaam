@@ -4,8 +4,8 @@
 
 ## Passed locally
 
-- `./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug`: builds an installable debug-signed APK; 14 JUnit tests pass (seven quantity/domain tests and seven password authentication flow tests); lint has no errors. Dependency update and launcher icon warnings remain. Versions are pinned as a compatible set; they are not claimed to be the newest versions.
-- `python3 scripts/test_backend.py`: **51 passed assertions/checks**, with output in [backend-test-results.txt](backend-test-results.txt). It applies all three migrations to a fresh PostgreSQL 16 container. Business assertions verify automatic profile onboarding without codes or approval, thaal scaling, single buffer application, observance exclusion, duplicate requests, idempotency payload mismatch, stock shortages, invoice/receipt separation, partial receipts, over-receipt rejection, supplier return/reversal, one-time reversal, partial payments, reservations/release, stale versions, production retry/completion checks, negative stock, balanced journals, invoice/payment distinction, registration/profile access boundaries, member financial edits, label-based privilege escalation prevention, and revoked writes/reads.
+- `./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug`: builds an installable debug-signed APK; 25 JUnit tests pass (seven quantity/domain, seven password-flow and eleven calendar tests); lint has no errors. Dependency update and launcher icon warnings remain. Versions are pinned as a compatible set; they are not claimed to be the newest versions.
+- `python3 scripts/test_backend.py`: **57 passed assertions/checks**, with output in [backend-test-results.txt](backend-test-results.txt). It applies all three migrations to a fresh PostgreSQL 16 container. Business assertions verify automatic profile onboarding without codes or approval, thaal scaling, single buffer application, observance exclusion, duplicate requests, idempotency payload mismatch, stock shortages, invoice/receipt separation, partial receipts, over-receipt rejection, supplier return/reversal, one-time reversal, partial payments, reservations/release, stale versions, production retry/completion checks, negative stock, balanced journals, invoice/payment distinction, registration/profile access boundaries, member financial edits, label-based privilege escalation prevention, and revoked writes/reads.
 - Separate concurrent database connections verify two concurrent registrations join exactly one workspace with exactly one set of default accounts, exactly one successful stock issue when two would overspend, and exactly-once posting under two simultaneous identical requests.
 - Queries under the `authenticated` API role verify workspace read isolation, private attachment read isolation, permitted own-workspace upload/denied foreign-workspace upload, and denial of direct stock-ledger writes.
 - BigDecimal domain tests cover kg/g conversion, rejecting mass/volume guesses, 23 × 8 = 184, upward thaal rounding, buffer scaling, shared demand shortage, nonnegative shortages and invalid yield.
@@ -25,6 +25,16 @@ No successful hosted password registration or end-to-end onboarding is claimed. 
 The 0.2.0 debug APK was installed directly on the connected physical Android API 37 phone using ADB. The package launched successfully in the foreground and the email/password sign-in screen was observed. The user was interacting with the phone; no personal account credentials were entered by the agent. Screenshots containing user-entered account information are not committed. This confirms installation and login-screen rendering, not successful registration, profile completion, all screen layouts, large text, tablet adaptation or process-death restoration.
 
 The earlier emulator attempts failed during startup; they do not count as app acceptance. The installable APK is debug-signed. An unsigned release APK also builds and requires operator signing. Migration tests include an upgrade from an existing 001/002 database with an existing owner and inventory item; migration 003 preserves those records and enrolls an additional member in the same workspace. API users are denied direct calls to the private legacy operational function.
+
+## Calendar validation in 0.3.0
+
+The complete build, unit tests, lint, release build and connected Android test task pass. Eleven new calendar unit tests cover the source's anchor and displayed Ramadan dates, every-day round trips over the chosen 1446–1500 AH range, leap days/year transitions, invalid/out-of-range dates, manual correction precedence, verification status, navigation and Asia/Kolkata midnight boundaries.
+
+Seven Compose instrumentation tests passed on the connected physical Android API 37 phone: native Misri month and Gregorian reference dates, previous/next navigation, Gregorian mode, reviewed manual correction display, explicit unavailable status before the supported anchor, observance-only defaults when planning, and a source action that runs only when tapped. Tests use isolated UI data and never sign in or post live committee records. The final 0.3.0 app is installed separately after the device test runner's cleanup. Full hosted calendar synchronization and community verification are not claimed.
+
+Six additional local PostgreSQL checks verify unverified source dates remain unverified, reviewed mappings update versions/provenance, stale updates are rejected, audit history is preserved, changing a position label cannot grant date-verification administration and all active members see the same reviewed correction.
+
+The source website was inspected directly. Mathematical parameters are implemented independently; the site's JavaScript, event catalogue and artwork are not bundled. No published API or redistribution licence was established. The provider works offline; it does not poll the site for updates or assert that its computed range is community-verified. See [calendar.md](calendar.md).
 
 ## Password flow checks
 
@@ -47,7 +57,7 @@ Seven additional JUnit tests cover email normalization, preservation of password
 
 ## Implemented but needing additional tests
 
-Additional local assertions cover FEFO expiry ordering, reconciliation and reversal, advance settlement limits, partial reimbursements, partial production, additional production after completion, remaining demand and preserved recipe snapshots. Calendar override conflicts, receipt upload metadata and Room/WorkManager lifecycle paths are not comprehensively tested. Verify these before relying on them operationally.
+Additional local assertions cover FEFO expiry ordering, reconciliation and reversal, advance settlement limits, partial reimbursements, partial production, additional production after completion, remaining demand and preserved recipe snapshots. Calendar override versions, conflict rejection, audit history and owner-only verification now have dedicated backend tests. Receipt upload metadata and Room/WorkManager lifecycle paths are not comprehensively tested. Verify these before relying on them operationally.
 
 ## Incomplete brief requirements
 
@@ -55,7 +65,7 @@ Additional local assertions cover FEFO expiry ordering, reconciliation and rever
 - No item aliases/conversion editor, purchasing pack UI or configurable tiffin/thaal portion profiles. Entry uses canonical ingredient units. `item_conversions` is schema preparation only. Recipe overrides, production consumption reversal and full amendment/correction chains are not complete.
 - No per-service production demand override, recommendation engine, forecast from historical waste, per-event actual-cost summary, per-tiffin cost report, reconciliation report or date-range reporting/search/filter suite. Journal CSV and underlying consumption costs exist.
 - Menu plans are a chronological service list; no weekly grid, full-week copying, holiday calendar or service suspension configuration. Copying an individual service, cancellation and multiple services per date are supported.
-- Calendar uses manually maintained mappings with source/verification; no automatic conversion, licensed import, calendar provider plugin interface, supported continuous date-range guarantee, month grid or automatic community observance feed.
+- Calendar now has an offline source-referenced Misri provider, native month grids and individual-date corrections. Community/religious verification, authorized automatic observance import and live external-source browser integration remain unverified. See [calendar.md](calendar.md).
 - Basic tasks, notes and activity exist; no in-app notification inbox/preferences, push, OCR or reviewed import UI.
 - Kitchen defaults and a record-derived setup checklist are present; a full staged/resumable onboarding wizard is not. One active workspace is selected automatically; multi-workspace selection is not provided.
 - UI strings have not all been extracted for localization. Adaptive tablet layouts and comprehensive accessibility/device QA are pending. A single snapshot RPC loads all records, so large historical datasets need pagination.

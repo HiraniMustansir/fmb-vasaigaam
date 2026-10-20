@@ -1,0 +1,40 @@
+<resources>
+ <string name="calendar_title">Bohri Hijri calendar</string>
+ <string name="calendar_description">Misri dates alongside Gregorian dates, with your committee’s plans.</string>
+ <string name="calendar_misri_mode">Misri</string>
+ <string name="calendar_gregorian_mode">Gregorian</string>
+ <string name="calendar_today">Today</string>
+ <string name="calendar_jump">Go to date</string>
+ <string name="calendar_previous">Previous month</string>
+ <string name="calendar_next">Next month</string>
+ <string name="calendar_open_source">Open source calendar &amp; observances</string>
+ <string name="calendar_legend">• Committee plan · * Manual correction</string>
+ <string name="calendar_source_credit">Date calculation reference: dawoodibohracalendar.in</string>
+ <string name="calendar_range">Calculated range: 1446–1500 AH. Community verification is separate.</string>
+ <string name="calendar_boundaries">Dates use Asia/Kolkata at midnight. No automatic sunset change.</string>
+ <string name="calendar_calculated">Calculated Misri date</string>
+ <string name="calendar_verified">Committee-verified correction</string>
+ <string name="calendar_unverified_override">Unverified manual correction</string>
+ <string name="calendar_unavailable">Hijri calculation unavailable for this date</string>
+ <string name="calendar_no_events">No committee plans for this date.</string>
+ <string name="calendar_plan">Add Miqaat or gathering</string>
+ <string name="calendar_correct">Correct selected date</string>
+ <string name="calendar_mapping_history">Saved date corrections</string>
+ <string name="calendar_mapping_edit">Edit correction</string>
+ <string name="calendar_mapping_empty">No manual corrections saved.</string>
+ <string name="calendar_observance">Observance only · no food demand</string>
+ <string name="calendar_gathering">Gathering with food</string>
+ <string name="calendar_tiffin">Tiffin service</string>
+ <string name="calendar_date_prompt">Gregorian date (YYYY-MM-DD)</string>
+ <string name="calendar_date_invalid">Enter a valid date, for example 2026-10-20.</string>
+ <string name="calendar_go">Go</string>
+ <string name="calendar_cancel">Cancel</string>
+ <string name="calendar_selected">Selected</string>
+ <string name="calendar_plans">Committee plans</string>
+ <string-array name="calendar_weekdays"><item>Sun</item><item>Mon</item><item>Tue</item><item>Wed</item><item>Thu</item><item>Fri</item><item>Sat</item></string-array>
+ <string-array name="calendar_misri_months">
+  <item>Muharram al-Haram</item><item>Safar al-Muzaffar</item><item>Rabi al-Awwal</item><item>Rabi al-Akhar</item>
+  <item>Jumada al-Ula</item><item>Jumada al-Ukhra</item><item>Rajab al-Asab</item><item>Shaban al-Karim</item>
+  <item>Ramadan al-Muazzam</item><item>Shawwal al-Mukarram</item><item>Zilqadah al-Haram</item><item>Zilhijjah al-Haram</item>
+ </string-array>
+</resources>

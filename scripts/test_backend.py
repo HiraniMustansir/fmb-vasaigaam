@@ -30,7 +30,7 @@ try:
   if initialized and shell(['docker','exec',container,'pg_isready','-U','postgres']).returncode==0: break
   time.sleep(.25)
  else: raise RuntimeError('PostgreSQL did not become ready')
- files=[ROOT/'supabase/tests/local_platform.sql',*sorted((ROOT/'supabase/migrations').glob('*.sql')),ROOT/'supabase/tests/business_rules.sql']
+ files=[ROOT/'supabase/tests/local_platform.sql',*sorted((ROOT/'supabase/migrations').glob('*.sql')),ROOT/'supabase/tests/business_rules.sql',ROOT/'supabase/tests/calendar_overrides.sql']
  result=sql('\n'.join(p.read_text() for p in files));print(result.stderr.strip())
  sql(f"insert into auth.users values ('{owner}','owner@example.test',now()),('{other}','other@example.test',now());")
  with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:

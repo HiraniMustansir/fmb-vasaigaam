@@ -6,9 +6,9 @@ Native Kotlin Android committee app for the Vasai Gaam FMB kitchen. Ivory, emera
 
 ## APK
 
-Install [artifacts/FMB-Vasaigaam-0.2.0-debug.apk](artifacts/FMB-Vasaigaam-0.2.0-debug.apk) on Android 8.0+ (API 26). This is an installable **debug-signed evaluation build**. It requires the backend setup in [superbase.md](superbase.md). The project URL and client-safe publishable key supplied by the owner are compiled into this build; they are not deployment credentials.
+Install [artifacts/FMB-Vasaigaam-0.3.0-debug.apk](artifacts/FMB-Vasaigaam-0.3.0-debug.apk) on Android 8.0+ (API 26). This is an installable **debug-signed evaluation build**. It requires the backend setup in [superbase.md](superbase.md). The project URL and client-safe publishable key supplied by the owner are compiled into this build; they are not deployment credentials.
 
-An [unsigned release APK](artifacts/FMB-Vasaigaam-0.2.0-release-unsigned.apk) is also included for the operator to sign; it cannot be installed until signed.
+An [unsigned release APK](artifacts/FMB-Vasaigaam-0.3.0-release-unsigned.apk) is also included for the operator to sign; it cannot be installed until signed.
 
 Check the APK against [SHA256SUMS](artifacts/SHA256SUMS). Release signing is described in [docs/release-signing.md](docs/release-signing.md). Never distribute a debug build as a production release.
 
@@ -19,7 +19,7 @@ Check the APK against [SHA256SUMS](artifacts/SHA256SUMS). Release signing is des
 - Demand scaling, thaal counts, buffers, combined shortages, reservations, actual cooking, partial production and deliberate additional production postings. Observances create no food demand.
 - Stock ledger, openings, partial invoice receipts, supplier returns, wastage, reconciliation, reversals and FEFO physical lot allocation. Negative available stock is blocked.
 - Supplier invoices, partial payments, cash/bank, expenses, contributions, advances, settlements and reimbursements. Balanced double-entry journals; reversals retain history. CSV sharing.
-- Verified manual Bohri date mappings with audit history; tasks, notes, activity; private receipt uploads and short-lived attachment access.
+- Native offline Bohri/Misri month calendar based on dawoodibohracalendar.in, Gregorian dates, source links, local Miqaats and verified manual corrections; tasks, notes, activity; private receipt uploads and short-lived attachment access.
 - Room drafts and read cache, visible freshness, Realtime invalidation plus 30-second foreground polling, and WorkManager membership checks. Drafts never post automatically.
 
 ## Build and tests
@@ -54,3 +54,5 @@ No service-role key or signing credential belongs in the app or Git. The supplie
 Registration is open: anyone with the app/backend details can create an account and complete profile setup. No email verification or invitation is required. Password recovery needs a trusted project administrator when email delivery is not configured.
 
 No bill, menu or contribution-distribution attachment was supplied. This version makes no assumptions about household contribution rates or per-thaal charges.
+
+Calendar method, source attribution, calculated range and verification limits are documented in [docs/calendar.md](docs/calendar.md).
