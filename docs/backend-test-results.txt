@@ -1,0 +1,50 @@
+WARNING:  wal_level is insufficient to publish logical changes
+HINT:  Set wal_level to "logical" before creating subscriptions.
+NOTICE:  PASS: Bootstrap requires owner token
+NOTICE:  PASS: Bootstrap can be claimed only once
+NOTICE:  PASS: 23 thaals at 8 people = 184 people; buffer applied once
+NOTICE:  PASS: Observances create no ingredient demand
+NOTICE:  PASS: Duplicate opening request posts once
+NOTICE:  PASS: Idempotency key cannot be reused with another payload
+NOTICE:  PASS: Insufficient stock blocks reservation
+NOTICE:  PASS: Invoice does not receive stock
+NOTICE:  PASS: Partial delivery adds stock once
+NOTICE:  PASS: Over-receipt blocked
+NOTICE:  PASS: Supplier return reduces stock
+NOTICE:  PASS: Stock reversal restores quantity with history
+NOTICE:  PASS: A movement can only be reversed once
+NOTICE:  PASS: Partial payment leaves correct supplier liability
+NOTICE:  PASS: Reservation does not consume physical stock
+NOTICE:  PASS: Draft transition releases reservations
+NOTICE:  PASS: Stale version rejected
+NOTICE:  PASS: Production consumes once
+NOTICE:  PASS: Production retry preserves one output
+NOTICE:  PASS: Second production completion blocked
+NOTICE:  PASS: Negative stock blocked
+NOTICE:  PASS: All journals balance
+NOTICE:  PASS: Invoice and payment are not two expenses
+NOTICE:  PASS: Invitation cannot be used by a different email
+NOTICE:  PASS: Uninvited user is not a member
+NOTICE:  PASS: Invited member joins and edits accounts
+NOTICE:  PASS: Position label does not grant owner administration
+NOTICE:  PASS: Revocation immediately blocks membership
+NOTICE:  PASS: Revoked member cannot post
+NOTICE:  PASS: FEFO chooses earliest expiry before creation order
+NOTICE:  PASS: Reconciliation posts the counted difference
+NOTICE:  PASS: Reconciliation reversal preserves the original count history
+NOTICE:  PASS: Advance settlements cannot exceed the member balance
+NOTICE:  PASS: Partial reimbursement leaves the correct member liability
+NOTICE:  PASS: Partial production keeps the service open
+NOTICE:  PASS: Partial production reduces remaining ingredient demand
+NOTICE:  PASS: Additional production accumulates output with explicit amendment
+NOTICE:  PASS: Recipe edits preserve past production snapshots
+NOTICE:  PASS: Additional postings remain balanced
+NOTICE:  PASS: Revoked user cannot read items through RLS
+NOTICE:  PASS: Revoked user cannot read financial records
+PASS: Concurrent bootstrap produces exactly one workspace owner
+PASS: Two concurrent stock issues cannot overspend stock
+PASS: Concurrent identical requests return success and post once
+PASS: API role cannot read another workspace or its attachments
+PASS: Storage upload policy permits only active workspace members
+PASS: Direct client mutation of the stock ledger is denied
+All backend checks passed on PostgreSQL 16. Supabase platform services are stubbed; hosted integration is not tested.

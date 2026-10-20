@@ -1,0 +1,8 @@
+*.apk binary
+*.jar binary
+*.jpg binary
+*.jpeg binary
+*.kt text eol=lf
+*.kts text eol=lf
+*.sql text eol=lf
+gradlew text eol=lf
