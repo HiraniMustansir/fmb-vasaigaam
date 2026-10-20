@@ -4,9 +4,11 @@ Native Kotlin Android committee app for the Vasai Gaam FMB kitchen. Ivory, emera
 
 **Status: signed release candidate (0.4.0).** Core workflows build and pass local checks, and the existing signed-in phone loads its hosted workspace. Full hosted multi-member acceptance and several broader brief requirements remain outstanding. See [validation](docs/validation.md) for scope and gaps.
 
-## APK
+## Download the latest signed APK
 
-Download the [signed release APK](artifacts/FMB-Vasaigaam-0.4.0-release.apk) for Android 8.0+ (API 26). This is a directly installable release candidate, not an unsigned APK. It requires the backend setup in [superbase.md](superbase.md).
+**[Download FMB Vasaigaam v0.4.0 — Signed APK](https://github.com/HiraniMustansir/fmb-vasaigaam/raw/refs/tags/v0.4.0-rc1/artifacts/FMB-Vasaigaam-0.4.0-release.apk)**
+
+Version **0.4.0** · Signed release candidate · Android **8.0+** (API 26). This is a directly installable release candidate, not an unsigned APK. It requires the backend setup in [superbase.md](superbase.md).
 
 For existing evaluation installations, the [updated debug APK](artifacts/FMB-Vasaigaam-0.4.0-debug.apk) preserves the debug signing identity. The connected phone was updated with this build in place. **The release APK cannot replace a debug installation directly because their signing keys differ.** See [migration and private key backup instructions](docs/release-signing.md) before switching. Later signed releases can update each other in place.
 
